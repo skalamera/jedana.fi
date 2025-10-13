@@ -1,0 +1,310 @@
+import { TrendingUp, TrendingDown, Edit, Trash2 } from 'lucide-react'
+import type { PortfolioAsset } from '@/types'
+import { usePortfolioStore } from '@/stores/portfolio-store'
+import { useState } from 'react'
+
+interface AssetListProps {
+    assets: PortfolioAsset[]
+    group?: 'crypto' | 'stock' | 'manual'
+}
+
+export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
+    const { updateAssetCostBasis, deleteManualAsset } = usePortfolioStore()
+
+    // Get color scheme based on group
+    const getColorScheme = () => {
+        switch (group) {
+            case 'crypto':
+                return {
+                    primary: 'var(--crypto-primary)',
+                    secondary: 'var(--crypto-secondary)',
+                    accent: 'var(--crypto-accent)',
+                    border: 'border-teal-200 dark:border-teal-800',
+                    hoverBorder: 'hover:border-teal-300 dark:hover:border-teal-700'
+                }
+            case 'stock':
+                return {
+                    primary: 'var(--stock-primary)',
+                    secondary: 'var(--stock-secondary)',
+                    accent: 'var(--stock-accent)',
+                    border: 'border-orange-200 dark:border-orange-800',
+                    hoverBorder: 'hover:border-orange-300 dark:hover:border-orange-700'
+                }
+            case 'manual':
+                return {
+                    primary: 'var(--manual-primary)',
+                    secondary: 'var(--manual-secondary)',
+                    accent: 'var(--manual-accent)',
+                    border: 'border-blue-200 dark:border-blue-800',
+                    hoverBorder: 'hover:border-blue-300 dark:hover:border-blue-700'
+                }
+            default:
+                return {
+                    primary: 'var(--crypto-primary)',
+                    secondary: 'var(--crypto-secondary)',
+                    accent: 'var(--crypto-accent)',
+                    border: 'border-gray-200 dark:border-gray-700',
+                    hoverBorder: 'hover:border-gray-300 dark:hover:border-gray-600'
+                }
+        }
+    }
+
+    const colors = getColorScheme()
+
+    const formatCurrency = (value: number | undefined) => {
+        if (value === undefined || isNaN(value)) {
+            return '$0.00'
+        }
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2,
+        }).format(value)
+    }
+
+    const formatPercentage = (value: number | undefined) => {
+        if (value === undefined || isNaN(value)) {
+            return '—'
+        }
+        const sign = value >= 0 ? '+' : ''
+        return `${sign}${value.toFixed(2)}%`
+    }
+
+    const formatDisplaySymbol = (symbol: string) => {
+        // Remove 'X' prefix from crypto symbols
+        let displaySymbol = symbol.startsWith('X') ? symbol.substring(1) : symbol
+        // Remove '.EQ' suffix from equity symbols
+        displaySymbol = displaySymbol.endsWith('.EQ') ? displaySymbol.slice(0, -3) : displaySymbol
+        return displaySymbol
+    }
+
+    const handleCostBasisUpdate = async (asset: PortfolioAsset, newCostBasis: number) => {
+        const assetType = asset.symbol.endsWith('.EQ') ? 'equity' : 'crypto'
+        await updateAssetCostBasis(asset.symbol, assetType, newCostBasis)
+    }
+
+    // State for editing cost basis
+    const [editingCostBasis, setEditingCostBasis] = useState<string | null>(null)
+    const [editCostBasisValue, setEditCostBasisValue] = useState('')
+    // State for delete confirmation
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+
+    const startEditCostBasis = (asset: PortfolioAsset) => {
+        setEditingCostBasis(asset.symbol)
+        setEditCostBasisValue(asset.costBasis.toString())
+    }
+
+    const saveCostBasis = async (asset: PortfolioAsset) => {
+        const newCostBasis = parseFloat(editCostBasisValue)
+        if (!isNaN(newCostBasis) && newCostBasis >= 0) {
+            await handleCostBasisUpdate(asset, newCostBasis)
+        }
+        setEditingCostBasis(null)
+        setEditCostBasisValue('')
+    }
+
+    const cancelEditCostBasis = () => {
+        setEditingCostBasis(null)
+        setEditCostBasisValue('')
+    }
+
+    return (
+        <div className="space-y-3">
+            {assets.map((asset) => {
+                const isPositivePnL = asset.dailyPnL !== undefined && asset.dailyPnL >= 0
+                const hasUnrealizedPnL = asset.unrealizedPnL !== undefined && asset.unrealizedPnL !== 0
+                const dailyPct = typeof asset.dailyPnLPercentage === 'number' && !isNaN(asset.dailyPnLPercentage)
+                    ? asset.dailyPnLPercentage
+                    : 0
+
+                return (
+                    <div key={asset.symbol} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-200" style={{
+                        border: `2px solid ${colors.primary}20`,
+                        '--hover-border': `${colors.primary}40`
+                    } as React.CSSProperties}>
+                        {/* Asset Header */}
+                        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                    <h4 className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
+                                        {asset.name}
+                                    </h4>
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${asset.symbol.endsWith('.EQ')
+                                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                                        : asset.source === 'kraken'
+                                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                                            : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                        }`}>
+                                        {asset.symbol.endsWith('.EQ') ? 'Stock' : asset.source === 'kraken' ? 'Kraken' : 'Manual'}
+                                    </span>
+                                </div>
+                                <div className="text-right">
+                                    {/* Top-right actions */}
+                                    <div className="flex justify-end -mt-1 mb-1">
+                                        {asset.source === 'manual' && asset.manualId && (
+                                            confirmDeleteId === asset.manualId ? (
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={async () => {
+                                                            await deleteManualAsset(asset.manualId!)
+                                                            setConfirmDeleteId(null)
+                                                        }}
+                                                        className="inline-flex items-center px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                                                    >
+                                                        Confirm
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setConfirmDeleteId(null)}
+                                                        className="inline-flex items-center px-2 py-1 text-xs border rounded text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => setConfirmDeleteId(asset.manualId!)}
+                                                    className="inline-flex items-center p-1.5 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                                                    title="Delete manual asset"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            )
+                                        )}
+                                    </div>
+
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">Balance</div>
+                                    <div className="text-sm font-mono font-semibold text-gray-900 dark:text-white">
+                                        {asset.balance.toFixed(6)}
+                                    </div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                        {formatDisplaySymbol(asset.symbol)}
+                                    </div>
+                                </div>
+                            </div>
+                            {asset.note && (
+                                <div className="text-xs mt-2 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">
+                                    {asset.note}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* All Asset Data in One Section */}
+                        <div className="p-4">
+                            {/* Primary Metrics Grid */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4" style={{ backgroundColor: `${colors.secondary}80` }}>
+                                {/* Price */}
+                                <div className="text-center">
+                                    <div className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: colors.accent }}>Price</div>
+                                    <div className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
+                                        {formatCurrency(asset.currentPrice)}
+                                    </div>
+                                </div>
+
+                                {/* Value */}
+                                <div className="text-center">
+                                    <div className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: colors.accent }}>Value</div>
+                                    <div className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
+                                        {formatCurrency(asset.value)}
+                                    </div>
+                                </div>
+
+                                {/* Cost Basis */}
+                                <div className="text-center">
+                                    <div className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: colors.accent }}>Cost Basis</div>
+                                    {editingCostBasis === asset.symbol ? (
+                                        <div className="space-y-2">
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={editCostBasisValue}
+                                                onChange={(e) => setEditCostBasisValue(e.target.value)}
+                                                className="w-full max-w-20 px-2 py-1 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                autoFocus
+                                            />
+                                            <div className="flex space-x-1">
+                                                <button
+                                                    onClick={() => saveCostBasis(asset)}
+                                                    className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                                                >
+                                                    Save
+                                                </button>
+                                                <button
+                                                    onClick={cancelEditCostBasis}
+                                                    className="px-2 py-1 text-xs bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-400 dark:hover:bg-gray-500"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-center space-x-1">
+                                            <div className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
+                                                {formatCurrency(asset.costBasis)}
+                                            </div>
+                                            <button
+                                                onClick={() => startEditCostBasis(asset)}
+                                                className="p-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+                                                title="Edit cost basis"
+                                            >
+                                                <Edit className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Daily P&L */}
+                                <div className="text-center">
+                                    <div className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: colors.accent }}>Daily P&L</div>
+                                    <div className={`text-base md:text-lg font-bold flex items-center justify-center ${isPositivePnL ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                        {asset.dailyPnL === 0 && asset.symbol.endsWith('.EQ') ? (
+                                            <span className="text-gray-400 dark:text-gray-500">—</span>
+                                        ) : isPositivePnL ? (
+                                            <TrendingUp className="w-4 h-4 mr-1" />
+                                        ) : (
+                                            <TrendingDown className="w-4 h-4 mr-1" />
+                                        )}
+                                        {asset.dailyPnL === 0 && asset.symbol.endsWith('.EQ') ? '' : formatCurrency(asset.dailyPnL)}
+                                    </div>
+                                    <div className={`text-sm ${isPositivePnL ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                        {asset.dailyPnL === 0 && asset.symbol.endsWith('.EQ') ? (
+                                            <span className="text-gray-400 dark:text-gray-500">—</span>
+                                        ) : (
+                                            formatPercentage(dailyPct)
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Unrealized P&L Section - When Available */}
+                            {hasUnrealizedPnL && (
+                                <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
+                                    <div className="grid grid-cols-2 gap-4" style={{ backgroundColor: `${colors.secondary}60` }}>
+                                        <div className="text-center">
+                                            <div className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: colors.accent }}>Unrealized P&L</div>
+                                            <div className={`text-base md:text-lg font-bold flex items-center justify-center ${asset.unrealizedPnL && asset.unrealizedPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                {asset.unrealizedPnL && asset.unrealizedPnL >= 0 ? (
+                                                    <TrendingUp className="w-4 h-4 mr-1" />
+                                                ) : (
+                                                    <TrendingDown className="w-4 h-4 mr-1" />
+                                                )}
+                                                {formatCurrency(asset.unrealizedPnL)}
+                                            </div>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: colors.accent }}>Total %</div>
+                                            <div className={`text-base md:text-lg font-bold ${asset.unrealizedPnL && asset.unrealizedPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                {formatPercentage(asset.unrealizedPnLPercentage)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                    </div>
+                )
+            })}
+        </div>
+    )
+}
