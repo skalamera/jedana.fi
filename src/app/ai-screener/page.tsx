@@ -209,7 +209,7 @@ export default function AIScreenerPage() {
                             Investment Criteria
                         </CardTitle>
                         <CardDescription className="text-gray-600 dark:text-gray-300">
-                            Select your preferred asset types and describe what you're looking for in detail
+                            Select your preferred asset types and describe what you&apos;re looking for in detail
                         </CardDescription>
                     </CardHeader>
                     <CardContent>

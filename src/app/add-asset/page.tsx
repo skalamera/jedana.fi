@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Plus, ArrowLeft, Search } from 'lucide-react'
-import { redirect } from 'next/navigation'
 
 // Popular tickers with their display names and types
 const POPULAR_TICKERS = [
@@ -68,6 +67,18 @@ export default function AddAssetPage() {
     const { user, isLoading: authLoading } = useAuthStore()
     const { addManualAsset, isLoading, error } = usePortfolioStore()
 
+    // Move all hooks to the top, before any conditional returns
+    const [formData, setFormData] = useState({
+        symbol: '',
+        name: '',
+        quantity: '',
+        cost_basis: '',
+    })
+    const [success, setSuccess] = useState<string | null>(null)
+    const [searchTerm, setSearchTerm] = useState('')
+    const [showSuggestions, setShowSuggestions] = useState(false)
+    const searchRef = useRef<HTMLDivElement>(null)
+
     useEffect(() => {
         if (!authLoading && !user) {
             router.push('/auth')
@@ -100,17 +111,6 @@ export default function AddAssetPage() {
     if (!user) {
         return null // Will redirect via useEffect
     }
-
-    const [formData, setFormData] = useState({
-        symbol: '',
-        name: '',
-        quantity: '',
-        cost_basis: '',
-    })
-    const [success, setSuccess] = useState<string | null>(null)
-    const [searchTerm, setSearchTerm] = useState('')
-    const [showSuggestions, setShowSuggestions] = useState(false)
-    const searchRef = useRef<HTMLDivElement>(null)
 
     // Filter popular tickers based on search term
     const filteredTickers = POPULAR_TICKERS.filter(ticker =>
@@ -251,7 +251,7 @@ export default function AddAssetPage() {
                                                     ))
                                                 ) : (
                                                     <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                                                        No assets found matching "{searchTerm}"
+                                                        No assets found matching &quot;{searchTerm}&quot;
                                                     </div>
                                                 )}
                                             </div>

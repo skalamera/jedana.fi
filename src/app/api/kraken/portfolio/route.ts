@@ -52,8 +52,8 @@ async function fetchEquityPrices(symbols: string[]): Promise<{
 
                 // Find the most recent trading day with actual price movement
                 // Yahoo Finance returns data points even for non-trading days, but with same prices
-                let lastTradingPrice = currentPrice
-                let previousTradingPrice = closes[closes.length - 2]
+                const lastTradingPrice = currentPrice
+                const previousTradingPrice = closes[closes.length - 2]
 
                 // Check if there's been actual price movement (indicating real trading)
                 // If the last two data points are the same, we might be looking at weekend data

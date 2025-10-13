@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, CheckCircle, AlertCircle, Trash2 } from 'lucide-react'
-import { redirect } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { validateKrakenCredentials } from '@/lib/kraken-api'
 
@@ -288,7 +287,7 @@ export default function SettingsPage() {
                                             required
                                         />
                                         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                            Usually starts with 'HH' and is 56 characters long
+                                            Usually starts with &apos;HH&apos; and is 56 characters long
                                         </p>
                                     </div>
                                     <div>
