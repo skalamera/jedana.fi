@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
-    "start": "next start",
-    "lint": "eslint"
+    "build": "next build",
+    "start": "next start -p $PORT",
+    "lint": "eslint",
+    "heroku-postbuild": "npm run build"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
