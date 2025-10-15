@@ -9,7 +9,49 @@ interface AssetListProps {
 }
 
 export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
-    const { updateAssetCostBasis, deleteManualAsset } = usePortfolioStore()
+    const { updateAssetCostBasis, deleteManualAsset, portfolio } = usePortfolioStore()
+
+    // Helper function to format display symbol
+    const getDisplaySymbol = (asset: PortfolioAsset) => {
+        let symbol = asset.symbol
+
+        // Remove .EQ suffix for stocks and ETFs
+        if (symbol.endsWith('.EQ')) {
+            symbol = symbol.replace('.EQ', '')
+        }
+
+        // Remove X prefix for Kraken crypto assets
+        if (asset.source === 'kraken' && !symbol.endsWith('.EQ') && symbol.startsWith('X')) {
+            symbol = symbol.substring(1)
+        }
+
+        return symbol
+    }
+
+    // Calculate allocation percentage for this asset
+    const getAllocationPercentage = (asset: PortfolioAsset) => {
+        if (!portfolio?.totalValue || portfolio.totalValue === 0) return 0
+        return (asset.value / portfolio.totalValue) * 100
+    }
+
+    // Identify if an asset is an ETF
+    const isETF = (asset: PortfolioAsset) => {
+        // Common ETF tickers
+        const knownETFs = new Set([
+            'VOO', 'IVV', 'SPY', 'VTI', 'QQQ', 'VUG', 'VEA', 'IEFA', 'VTV', 'BND', 'AGG', 'GLD', 'IWF', 'VGT', 'IEMG', 'VXUS', 'VWO', 'IJH', 'VIG', 'IBIT', 'XLK', 'SPLG', 'VO', 'IJR', 'ITOT', 'RSP', 'BNDX', 'SCHD', 'IWM', 'VB', 'EFA', 'IVW', 'VYM', 'QQQM', 'IWD', 'IAU', 'SCHX', 'SGOV', 'VCIT', 'VT', 'XLF', 'QUAL', 'SCHF', 'SCHG', 'VEU', 'IXUS', 'TLT', 'VV', 'IWR', 'SPYG', 'IWB', 'MBB', 'BIL', 'IVE', 'JEPI', 'DIA', 'VTEB', 'MUB', 'VCSH', 'BSV', 'DFAC', 'IEF', 'SCHB', 'XLV', 'DGRO', 'SMH', 'JPST', 'VGIT', 'VNQ', 'ARKK', 'BOTZ', 'CLOU', 'HERO', 'BUG', 'CIBR', 'LIT', 'ICLN', 'HACK', 'XYLD', 'PFF', 'TLH', 'OEF', 'IOO', 'FTEC', 'RYSPX', 'XSD', 'XBI', 'IHI', 'PSP', 'CQQQ', 'GXC', 'TIP', 'VCLT', 'EDV', 'BKLN', 'SHV', 'USFR', 'KRE', 'PEJ', 'SIL', 'PALL', 'SQQQ', 'TQQQ', 'VRTX', 'VHT', 'VIS', 'VDE', 'XLY', 'XLP', 'XLI', 'XLB', 'XLU', 'ETHU', 'ETHA'
+        ])
+
+        // Check if symbol is a known ETF
+        if (knownETFs.has(asset.symbol.replace('.EQ', ''))) {
+            return true
+        }
+
+        // Check if name contains ETF indicators
+        const name = asset.name.toLowerCase()
+        return name.includes('etf') || name.includes('trust') || name.includes('fund') ||
+            name.includes('spdr') || name.includes('ishares') || name.includes('vanguard') ||
+            name.includes('invesco') || name.includes('proshares')
+    }
 
     // Get color scheme based on group
     const getColorScheme = () => {
@@ -70,13 +112,6 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
         return `${sign}${value.toFixed(2)}%`
     }
 
-    const formatDisplaySymbol = (symbol: string) => {
-        // Remove 'X' prefix from crypto symbols
-        let displaySymbol = symbol.startsWith('X') ? symbol.substring(1) : symbol
-        // Remove '.EQ' suffix from equity symbols
-        displaySymbol = displaySymbol.endsWith('.EQ') ? displaySymbol.slice(0, -3) : displaySymbol
-        return displaySymbol
-    }
 
     const handleCostBasisUpdate = async (asset: PortfolioAsset, newCostBasis: number) => {
         const assetType = asset.symbol.endsWith('.EQ') ? 'equity' : 'crypto'
@@ -125,18 +160,50 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                         {/* Asset Header */}
                         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
                             <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-3">
+                                <div className="flex flex-col space-y-1">
                                     <h4 className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
-                                        {asset.name}
+                                        {getDisplaySymbol(asset)}
                                     </h4>
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${asset.symbol.endsWith('.EQ')
-                                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
-                                        : asset.source === 'kraken'
-                                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                                            : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                                        }`}>
-                                        {asset.symbol.endsWith('.EQ') ? 'Stock' : asset.source === 'kraken' ? 'Kraken' : 'Manual'}
-                                    </span>
+                                    <div className="flex items-center space-x-0.5">
+                                        {asset.source === 'kraken' && (
+                                            <img
+                                                src="/kraken_logo.svg"
+                                                alt="Kraken"
+                                                className="w-4 h-4"
+                                            />
+                                        )}
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${asset.symbol.endsWith('.EQ') && !isETF(asset)
+                                            ? 'text-purple-800 dark:text-purple-300'
+                                            : asset.symbol.endsWith('.EQ') && isETF(asset)
+                                                ? 'text-indigo-800 dark:text-indigo-300'
+                                                : asset.source === 'kraken'
+                                                    ? 'text-blue-800 dark:text-blue-300'
+                                                    : asset.asset_type === 'crypto'
+                                                        ? 'text-teal-800 dark:text-teal-300'
+                                                        : (asset.asset_type === 'equity' || asset.asset_type === 'manual') && isETF(asset)
+                                                            ? 'text-indigo-800 dark:text-indigo-300'
+                                                            : asset.asset_type === 'equity'
+                                                                ? 'text-orange-800 dark:text-orange-300'
+                                                                : asset.asset_type === 'manual' && isETF(asset)
+                                                                    ? 'text-indigo-800 dark:text-indigo-300'
+                                                                    : 'text-gray-800 dark:text-gray-300'
+                                            }`}>
+                                            {asset.symbol.endsWith('.EQ')
+                                                ? (isETF(asset) ? 'ETF' : 'Stock')
+                                                : asset.source === 'kraken' && !asset.symbol.endsWith('.EQ')
+                                                    ? 'Crypto'
+                                                    : asset.asset_type === 'crypto'
+                                                        ? 'Crypto'
+                                                        : (asset.asset_type === 'equity' || asset.asset_type === 'manual') && isETF(asset)
+                                                            ? 'ETF'
+                                                            : asset.asset_type === 'equity'
+                                                                ? 'Stock'
+                                                                : asset.asset_type === 'manual' && isETF(asset)
+                                                                    ? 'ETF'
+                                                                    : 'Manual'
+                                            }
+                                        </span>
+                                    </div>
                                 </div>
                                 <div className="text-right">
                                     {/* Top-right actions */}
@@ -172,12 +239,16 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                         )}
                                     </div>
 
-                                    <div className="text-xs text-gray-500 dark:text-gray-400">Balance</div>
                                     <div className="text-sm font-mono font-semibold text-gray-900 dark:text-white">
                                         {asset.balance.toFixed(6)}
                                     </div>
-                                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                                        {formatDisplaySymbol(asset.symbol)}
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1 mt-2">
+                                        <img
+                                            src="/allocation_logo.svg"
+                                            alt="Allocation"
+                                            className="w-4 h-4"
+                                        />
+                                        <span>{getAllocationPercentage(asset).toFixed(2)}%</span>
                                     </div>
                                 </div>
                             </div>
@@ -281,7 +352,7 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                 <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
                                     <div className="grid grid-cols-2 gap-4" style={{ backgroundColor: `${colors.secondary}60` }}>
                                         <div className="text-center">
-                                            <div className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: colors.accent }}>Unrealized P&L</div>
+                                            <div className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: colors.accent }}>UP&L</div>
                                             <div className={`text-base md:text-lg font-bold flex items-center justify-center ${asset.unrealizedPnL && asset.unrealizedPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                                 {asset.unrealizedPnL && asset.unrealizedPnL >= 0 ? (
                                                     <TrendingUp className="w-4 h-4 mr-1" />

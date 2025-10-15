@@ -26,11 +26,20 @@ CREATE TABLE IF NOT EXISTS manual_assets (
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     symbol TEXT NOT NULL,
     name TEXT NOT NULL,
+    asset_type TEXT NOT NULL CHECK (asset_type IN ('crypto', 'equity', 'manual')) DEFAULT 'manual',
     quantity DECIMAL(20,8) NOT NULL CHECK (quantity > 0),
     cost_basis DECIMAL(20,8) NOT NULL CHECK (cost_basis >= 0), -- Total amount paid for this asset
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add asset_type column if it doesn't exist (for existing databases)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'manual_assets' AND column_name = 'asset_type') THEN
+        ALTER TABLE manual_assets ADD COLUMN asset_type TEXT NOT NULL DEFAULT 'manual' CHECK (asset_type IN ('crypto', 'equity', 'manual'));
+    END IF;
+END $$;
 
 -- Create asset cost basis table for tracking cost basis of any asset
 CREATE TABLE IF NOT EXISTS asset_cost_basis (

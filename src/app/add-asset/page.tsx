@@ -71,6 +71,7 @@ export default function AddAssetPage() {
     const [formData, setFormData] = useState({
         symbol: '',
         name: '',
+        asset_type: 'crypto' as 'crypto' | 'equity' | 'manual',
         quantity: '',
         cost_basis: '',
     })
@@ -142,6 +143,7 @@ export default function AddAssetPage() {
             await addManualAsset({
                 symbol: formData.symbol.toUpperCase(),
                 name: formData.name,
+                asset_type: formData.asset_type,
                 quantity,
                 cost_basis: costBasis,
             })
@@ -150,6 +152,7 @@ export default function AddAssetPage() {
             setFormData({
                 symbol: '',
                 name: '',
+                asset_type: 'crypto',
                 quantity: '',
                 cost_basis: '',
             })
@@ -297,6 +300,26 @@ export default function AddAssetPage() {
                                             Full name of the asset
                                         </p>
                                     </div>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="asset_type" className="block text-sm font-medium text-gray-800 dark:text-gray-100">
+                                        Asset Type *
+                                    </label>
+                                    <select
+                                        id="asset_type"
+                                        value={formData.asset_type}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, asset_type: e.target.value as 'crypto' | 'equity' | 'manual' }))}
+                                        className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        required
+                                    >
+                                        <option value="crypto">Cryptocurrency</option>
+                                        <option value="equity">Stock/ETF</option>
+                                        <option value="manual">Other</option>
+                                    </select>
+                                    <p className="mt-1 text-xs text-gray-700 dark:text-gray-300">
+                                        Select the type of asset you're adding
+                                    </p>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

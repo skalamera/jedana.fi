@@ -22,6 +22,7 @@ export interface ManualAsset {
     user_id: string
     symbol: string
     name: string
+    asset_type: 'crypto' | 'equity' | 'manual'
     quantity: number
     cost_basis: number
     created_at: string
@@ -74,6 +75,7 @@ export interface KrakenTrade {
 export interface PortfolioAsset {
     symbol: string
     name: string
+    asset_type?: 'crypto' | 'equity' | 'manual'
     balance: number
     currentPrice: number
     costBasis: number
@@ -92,6 +94,9 @@ export interface Portfolio {
     totalValue: number
     totalDailyPnL: number
     totalDailyPnLPercentage: number
+    totalCostBasis?: number
+    totalUnrealizedPnL?: number
+    totalUnrealizedPnLPercentage?: number
     lastUpdated: string
 }
 

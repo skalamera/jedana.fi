@@ -40,6 +40,14 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
     }
 
     const isPositivePnL = portfolio.totalDailyPnL >= 0
+    const hasUnrealized = typeof portfolio.totalUnrealizedPnL === 'number'
+        && typeof portfolio.totalCostBasis === 'number'
+        && portfolio.totalCostBasis > 0
+    const totalUnrealizedPnL = hasUnrealized ? portfolio.totalUnrealizedPnL! : 0
+    const totalUnrealizedPnLPercentage = hasUnrealized
+        ? (portfolio.totalUnrealizedPnLPercentage ?? ((totalUnrealizedPnL / portfolio.totalCostBasis!) * 100))
+        : 0
+    const isPositiveUnrealized = totalUnrealizedPnL >= 0
 
     return (
         <div className="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-xl border border-gray-200 dark:border-gray-600">
@@ -62,8 +70,8 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                     </div>
                 </div>
 
-                {/* Mobile: Stack vertically, Desktop: 3 columns */}
-                <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-3 md:gap-4">
+                {/* Mobile: Stack vertically, Desktop: 4 columns when total P&L available */}
+                <div className={`space-y-3 md:space-y-0 md:grid md:gap-4 ${hasUnrealized ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
                     {/* Total Value */}
                     <div className="bg-white dark:bg-gray-600 rounded-xl p-4 border border-gray-200 dark:border-gray-500 shadow-sm">
                         <div className="flex items-center">
@@ -134,6 +142,36 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                             </div>
                         </div>
                     </div>
+
+                    {hasUnrealized && (
+                        <div className={`rounded-xl p-4 border shadow-sm ${isPositiveUnrealized
+                            ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700'
+                            : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700'
+                            }`}>
+                            <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isPositiveUnrealized ? 'bg-green-500' : 'bg-red-500'}`}>
+                                        {isPositiveUnrealized ? (
+                                            <TrendingUp className="h-5 w-5 text-white" />
+                                        ) : (
+                                            <TrendingDown className="h-5 w-5 text-white" />
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="ml-4 flex-1">
+                                    <dt className={`text-sm font-medium ${isPositiveUnrealized ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
+                                        Total P&L
+                                    </dt>
+                                    <dd className={`text-xl md:text-2xl font-bold ${isPositiveUnrealized ? 'text-green-900 dark:text-green-100' : 'text-red-900 dark:text-red-100'}`}>
+                                        {formatCurrency(totalUnrealizedPnL)}
+                                    </dd>
+                                    <dd className={`text-sm font-medium ${isPositiveUnrealized ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
+                                        {formatPercentage(totalUnrealizedPnLPercentage)}
+                                    </dd>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

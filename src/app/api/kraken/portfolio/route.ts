@@ -369,6 +369,18 @@ export async function GET(request: NextRequest) {
                 const isEquity = asset.endsWith('.EQ')
                 const assetInfo = assetMapping[asset] || { name: asset }
 
+                // For equity assets, use the base symbol for name lookup if available
+                let displayName = assetInfo.name
+                if (isEquity) {
+                    const baseSymbol = asset.replace('.EQ', '')
+                    const baseAssetInfo = assetMapping[baseSymbol]
+                    if (baseAssetInfo) {
+                        displayName = baseAssetInfo.name
+                    } else {
+                        displayName = baseSymbol // fallback to base symbol if no mapping found
+                    }
+                }
+
                 // Only try to get prices for known pairs (equity assets won't have Kraken pairs)
                 let pair = assetInfo.pair
                 if (isEquity) {
@@ -381,7 +393,7 @@ export async function GET(request: NextRequest) {
 
                 assets.push({
                     symbol: asset,
-                    name: assetInfo.name,
+                    name: displayName,
                     balance: amount,
                     pair: pair,
                     isStablecoin: assetInfo.stablecoin
@@ -427,20 +439,62 @@ export async function GET(request: NextRequest) {
         const costBasisMap = new Map<string, number>()
         if (storedCostBasis) {
             storedCostBasis.forEach((item: any) => {
-                costBasisMap.set(`${item.symbol}:${item.asset_type}`, item.cost_basis)
+                const rawSymbol = (item.symbol || '').toString().toUpperCase()
+                const rawType = (item.asset_type || '').toString().toLowerCase()
+                const normalizedType = rawType === 'stock' ? 'equity' : rawType || 'crypto'
+                const costBasisValue = Number(item.cost_basis)
+
+                if (!rawSymbol || Number.isNaN(costBasisValue)) {
+                    return
+                }
+
+                const candidateKeys = new Set<string>()
+                candidateKeys.add(`${rawSymbol}:${normalizedType}`)
+                candidateKeys.add(`${rawSymbol}:${rawType}`)
+
+                if (rawSymbol.endsWith('.EQ')) {
+                    const withoutSuffix = rawSymbol.replace('.EQ', '')
+                    candidateKeys.add(`${withoutSuffix}:${normalizedType}`)
+                    candidateKeys.add(`${withoutSuffix}:${rawType}`)
+                }
+
+                if (rawSymbol.startsWith('XX') && rawSymbol.length > 2) {
+                    const trimmed = rawSymbol.substring(2)
+                    candidateKeys.add(`${trimmed}:${normalizedType}`)
+                    candidateKeys.add(`${trimmed}:${rawType}`)
+                } else if (rawSymbol.startsWith('X') && rawSymbol.length > 1) {
+                    const trimmed = rawSymbol.substring(1)
+                    candidateKeys.add(`${trimmed}:${normalizedType}`)
+                    candidateKeys.add(`${trimmed}:${rawType}`)
+                }
+
+                if (rawSymbol.startsWith('Z') && rawSymbol.length > 1) {
+                    const trimmed = rawSymbol.substring(1)
+                    candidateKeys.add(`${trimmed}:${normalizedType}`)
+                    candidateKeys.add(`${trimmed}:${rawType}`)
+                }
+
+                candidateKeys.forEach((key) => {
+                    if (!key.includes(':') || key.endsWith(':')) {
+                        return
+                    }
+
+                    costBasisMap.set(key, costBasisValue)
+                })
             })
         }
 
         // Calculate portfolio values
         let totalValue = 0
         let totalDailyPnL = 0
+        let totalCostBasis = 0
+        let totalUnrealizedPnL = 0
 
         const portfolioAssets = assets.map(asset => {
             let currentPrice = 0
             let value = 0
             let dailyPnL = 0
             let dailyPnLPercentage = 0
-            let costBasis = 0
             let unrealizedPnL = 0
             let unrealizedPnLPercentage = 0
 
@@ -452,9 +506,55 @@ export async function GET(request: NextRequest) {
                 assetType = 'crypto' // Treat stablecoins as crypto for cost basis purposes
             }
 
-            // Get stored cost basis, fallback to current price if not set
-            const costBasisKey = `${asset.symbol}:${assetType}`
-            costBasis = costBasisMap.get(costBasisKey) || 0
+            // Get stored cost basis using multiple symbol variations
+            const normalizedSymbol = asset.symbol.toUpperCase()
+            const normalizedType = assetType === 'stock' ? 'equity' : assetType
+
+            const candidateCostBasisKeys: string[] = [
+                `${normalizedSymbol}:${normalizedType}`,
+                `${normalizedSymbol}:${assetType}`
+            ]
+
+            if (normalizedSymbol.endsWith('.EQ')) {
+                const withoutSuffix = normalizedSymbol.replace('.EQ', '')
+                candidateCostBasisKeys.push(`${withoutSuffix}:${normalizedType}`)
+                candidateCostBasisKeys.push(`${withoutSuffix}:${assetType}`)
+            }
+
+            if (normalizedSymbol.startsWith('XX') && normalizedSymbol.length > 2) {
+                const trimmed = normalizedSymbol.substring(2)
+                candidateCostBasisKeys.push(`${trimmed}:${normalizedType}`)
+                candidateCostBasisKeys.push(`${trimmed}:${assetType}`)
+            } else if (normalizedSymbol.startsWith('X') && normalizedSymbol.length > 1) {
+                const trimmed = normalizedSymbol.substring(1)
+                candidateCostBasisKeys.push(`${trimmed}:${normalizedType}`)
+                candidateCostBasisKeys.push(`${trimmed}:${assetType}`)
+            }
+
+            if (normalizedSymbol.startsWith('Z') && normalizedSymbol.length > 1) {
+                const trimmed = normalizedSymbol.substring(1)
+                candidateCostBasisKeys.push(`${trimmed}:${normalizedType}`)
+                candidateCostBasisKeys.push(`${trimmed}:${assetType}`)
+            }
+
+            let costBasis = 0
+            let hasStoredCostBasis = false
+
+            for (const candidateKey of candidateCostBasisKeys) {
+                const storedValue = costBasisMap.get(candidateKey)
+                if (storedValue === undefined || storedValue === null) {
+                    continue
+                }
+
+                const parsedValue = Number(storedValue)
+                if (Number.isNaN(parsedValue)) {
+                    continue
+                }
+
+                costBasis = parsedValue
+                hasStoredCostBasis = true
+                break
+            }
 
             // Handle USD and stablecoins
             if (asset.symbol === 'USD' || asset.symbol === 'ZUSD' || asset.isStablecoin) {
@@ -495,21 +595,18 @@ export async function GET(request: NextRequest) {
                     currentPrice = equityData.currentPrice
                     value = asset.balance * currentPrice
 
-                    // Calculate daily P&L using previous close (only if there was actual trading)
-                    // Daily P&L should be based on price movements, not cost basis
-                    if (equityData.previousClose < equityData.currentPrice) {
-                        // There was price movement, calculate P&L normally
+                    if (equityData.previousClose > 0) {
                         const previousValue = asset.balance * equityData.previousClose
                         dailyPnL = value - previousValue
                         dailyPnLPercentage = previousValue > 0 ? (dailyPnL / previousValue) * 100 : 0
 
-                        console.log(`Found equity data for ${asset.symbol}: Current $${currentPrice}, Previous $${equityData.previousClose}, Daily P&L $${dailyPnL.toFixed(2)}`)
+                        if (dailyPnL !== 0) {
+                            console.log(`Found equity data for ${asset.symbol}: Current $${currentPrice}, Previous $${equityData.previousClose}, Daily P&L $${dailyPnL.toFixed(2)}`)
+                        } else {
+                            console.log(`No trading movement for ${asset.symbol} - prices unchanged`)
+                        }
                     } else {
-                        // No price movement (weekend/holiday), show 0 P&L
-                        dailyPnL = 0
-                        dailyPnLPercentage = 0
-
-                        console.log(`No trading movement for ${asset.symbol} - market may be closed`)
+                        console.warn(`Missing previous close for ${asset.symbol} - skipping daily P&L calculation`)
                     }
                 } else {
                     console.warn(`No equity price data found for ${asset.symbol}`)
@@ -565,9 +662,11 @@ export async function GET(request: NextRequest) {
 
             // Calculate unrealized P&L using stored cost basis
             // costBasis represents the TOTAL amount paid for this asset
-            if (costBasis > 0 && value > 0) {
+            if (hasStoredCostBasis && costBasis > 0 && value > 0) {
                 unrealizedPnL = value - costBasis
                 unrealizedPnLPercentage = costBasis > 0 ? (unrealizedPnL / costBasis) * 100 : 0
+                totalCostBasis += costBasis
+                totalUnrealizedPnL += unrealizedPnL
             }
 
             if (value > 0) {
@@ -575,14 +674,13 @@ export async function GET(request: NextRequest) {
                 totalDailyPnL += dailyPnL
             }
 
-            const assetIsEquity = asset.symbol.endsWith('.EQ')
-
             return {
                 symbol: asset.symbol,
                 name: asset.name,
+                asset_type: assetType,
                 balance: asset.balance,
                 currentPrice,
-                costBasis: costBasis > 0 ? costBasis : currentPrice, // Use stored cost basis if available, otherwise current price
+                costBasis,
                 value,
                 dailyPnL,
                 dailyPnLPercentage,
@@ -597,12 +695,16 @@ export async function GET(request: NextRequest) {
         }).filter(asset => asset.balance > 0) // Only return assets with balance
 
         const totalDailyPnLPercentage = totalValue > 0 ? (totalDailyPnL / (totalValue - totalDailyPnL)) * 100 : 0
+        const totalUnrealizedPnLPercentage = totalCostBasis > 0 ? (totalUnrealizedPnL / totalCostBasis) * 100 : 0
 
         return NextResponse.json({
             assets: portfolioAssets,
             totalValue,
             totalDailyPnL,
             totalDailyPnLPercentage,
+            totalCostBasis,
+            totalUnrealizedPnL,
+            totalUnrealizedPnLPercentage,
             lastUpdated: new Date().toISOString()
         })
     } catch (error) {

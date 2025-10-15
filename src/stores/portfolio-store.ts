@@ -118,9 +118,14 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
                                         console.log(`${asset.symbol}: Current $${currentPrice}, Previous $${previousPrice}, Daily P&L $${dailyPnL.toFixed(2)}`)
                                     }
 
+                                    // Clean up symbol and name for display
+                                    const cleanSymbol = asset.symbol.endsWith('.EQ') ? asset.symbol.replace('.EQ', '') : asset.symbol
+                                    const cleanName = asset.name.endsWith('.EQ') ? asset.name.replace('.EQ', '') : asset.name
+
                                     return {
-                                        symbol: asset.symbol,
-                                        name: asset.name,
+                                        symbol: asset.symbol, // Keep original symbol for processing
+                                        name: cleanName,
+                                        asset_type: asset.asset_type,
                                         balance: quantity,
                                         currentPrice,
                                         costBasis,
@@ -137,6 +142,8 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
 
                                 const apiTotalValue = portfolioData.totalValue || 0
                                 const apiDailyPnL = portfolioData.totalDailyPnL || 0
+                                const apiCostBasis = portfolioData.totalCostBasis || 0
+                                const apiUnrealizedPnL = portfolioData.totalUnrealizedPnL || 0
 
                                 portfolioData.assets = [...portfolioData.assets, ...manualPortfolioAssets]
 
@@ -144,14 +151,22 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
                                 const manualValueSum = manualPortfolioAssets.reduce((sum, a) => sum + (a.value || 0), 0)
                                 const manualDailyPnLSum = manualPortfolioAssets.reduce((sum, a) => sum + (a.dailyPnL || 0), 0)
                                 const manualOpenTotal = manualPortfolioAssets.reduce((sum, a) => sum + ((a.value || 0) - (a.dailyPnL || 0)), 0)
+                                const manualCostBasisSum = manualPortfolioAssets.reduce((sum, a) => sum + safeNumber(a.costBasis), 0)
+                                const manualUnrealizedPnLSum = manualPortfolioAssets.reduce((sum, a) => sum + safeNumber(a.unrealizedPnL), 0)
 
                                 // Combine with API totals
                                 portfolioData.totalValue = apiTotalValue + manualValueSum
                                 portfolioData.totalDailyPnL = apiDailyPnL + manualDailyPnLSum
+                                portfolioData.totalCostBasis = apiCostBasis + manualCostBasisSum
+                                portfolioData.totalUnrealizedPnL = apiUnrealizedPnL + manualUnrealizedPnLSum
                                 const apiOpenTotal = apiTotalValue - apiDailyPnL
                                 const combinedOpenTotal = apiOpenTotal + manualOpenTotal
                                 portfolioData.totalDailyPnLPercentage = combinedOpenTotal > 0
                                     ? (portfolioData.totalDailyPnL / combinedOpenTotal) * 100
+                                    : 0
+                                const combinedCostBasis = portfolioData.totalCostBasis || 0
+                                portfolioData.totalUnrealizedPnLPercentage = combinedCostBasis > 0
+                                    ? (portfolioData.totalUnrealizedPnL / combinedCostBasis) * 100
                                     : 0
                             }
 
@@ -217,9 +232,14 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
                         console.log(`${asset.symbol} (retry): Current $${currentPrice}, Previous $${previousPrice}, Daily P&L $${dailyPnL.toFixed(2)}`)
                     }
 
+                    // Clean up symbol and name for display
+                    const cleanSymbol = asset.symbol.endsWith('.EQ') ? asset.symbol.replace('.EQ', '') : asset.symbol
+                    const cleanName = asset.name.endsWith('.EQ') ? asset.name.replace('.EQ', '') : asset.name
+
                     return {
-                        symbol: asset.symbol,
-                        name: asset.name,
+                        symbol: asset.symbol, // Keep original symbol for processing
+                        name: cleanName,
+                        asset_type: asset.asset_type,
                         balance: quantity,
                         currentPrice,
                         costBasis,
@@ -236,19 +256,29 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
 
                 const apiTotalValue2 = portfolioData.totalValue || 0
                 const apiDailyPnL2 = portfolioData.totalDailyPnL || 0
+                const apiCostBasis2 = portfolioData.totalCostBasis || 0
+                const apiUnrealizedPnL2 = portfolioData.totalUnrealizedPnL || 0
 
                 portfolioData.assets = [...portfolioData.assets, ...manualPortfolioAssets]
 
                 const manualValueSum2 = manualPortfolioAssets.reduce((sum, a) => sum + (a.value || 0), 0)
                 const manualDailyPnLSum2 = manualPortfolioAssets.reduce((sum, a) => sum + (a.dailyPnL || 0), 0)
                 const manualOpenTotal2 = manualPortfolioAssets.reduce((sum, a) => sum + ((a.value || 0) - (a.dailyPnL || 0)), 0)
+                const manualCostBasisSum2 = manualPortfolioAssets.reduce((sum, a) => sum + safeNumber(a.costBasis), 0)
+                const manualUnrealizedPnLSum2 = manualPortfolioAssets.reduce((sum, a) => sum + safeNumber(a.unrealizedPnL), 0)
 
                 portfolioData.totalValue = apiTotalValue2 + manualValueSum2
                 portfolioData.totalDailyPnL = apiDailyPnL2 + manualDailyPnLSum2
+                portfolioData.totalCostBasis = apiCostBasis2 + manualCostBasisSum2
+                portfolioData.totalUnrealizedPnL = apiUnrealizedPnL2 + manualUnrealizedPnLSum2
                 const apiOpenTotal2 = apiTotalValue2 - apiDailyPnL2
                 const combinedOpenTotal2 = apiOpenTotal2 + manualOpenTotal2
                 portfolioData.totalDailyPnLPercentage = combinedOpenTotal2 > 0
                     ? (portfolioData.totalDailyPnL / combinedOpenTotal2) * 100
+                    : 0
+                const combinedCostBasis2 = portfolioData.totalCostBasis || 0
+                portfolioData.totalUnrealizedPnLPercentage = combinedCostBasis2 > 0
+                    ? (portfolioData.totalUnrealizedPnL / combinedCostBasis2) * 100
                     : 0
             }
 
@@ -438,6 +468,11 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
     },
 }))
 
+function safeNumber(value: number | undefined | null): number {
+    if (typeof value !== 'number' || Number.isNaN(value)) return 0
+    return value
+}
+
 // ---------- Demo Mode Helpers ----------
 function buildDemoPortfolio(): Portfolio {
     type Seed = { symbol: string; name: string; balance: number; current: number; previous: number; costBasis: number; equity?: boolean }
@@ -480,6 +515,7 @@ function toPortfolioAsset(seed: { symbol: string; name: string; balance: number;
     return {
         symbol,
         name: seed.name,
+        asset_type: seed.equity ? 'equity' : 'crypto',
         balance: seed.balance,
         currentPrice: seed.current,
         costBasis: seed.costBasis,

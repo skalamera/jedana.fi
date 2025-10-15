@@ -1,22 +1,24 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { usePortfolioStore } from '@/stores/portfolio-store'
 import { PortfolioSummary } from '@/components/portfolio/portfolio-summary'
 import { AssetList } from '@/components/portfolio/asset-list'
-import { RefreshCw, ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
+import type { PortfolioAsset } from '@/types'
 
 export function PortfolioDashboard() {
     const { portfolio, isLoading, error, refreshPortfolio } = usePortfolioStore()
 
     // State for tracking expanded groups
     const [expandedGroups, setExpandedGroups] = useState({
-        crypto: true,
-        stock: true,
-        manual: true
+        crypto: false,
+        etf: false,
+        stock: false,
+        manual: false
     })
 
-    const toggleGroup = (group: 'crypto' | 'stock' | 'manual') => {
+    const toggleGroup = (group: 'crypto' | 'etf' | 'stock' | 'manual') => {
         setExpandedGroups(prev => ({
             ...prev,
             [group]: !prev[group]
@@ -26,6 +28,62 @@ export function PortfolioDashboard() {
     useEffect(() => {
         refreshPortfolio()
     }, [refreshPortfolio])
+
+    // Group assets by type and calculate totals
+    // Cryptocurrencies: Kraken crypto assets OR manual assets with crypto type
+    const cryptoAssets = portfolio?.assets.filter(asset =>
+        (asset.source === 'kraken' && !asset.symbol.endsWith('.EQ')) ||
+        (asset.source === 'manual' && asset.asset_type === 'crypto')
+    ) || []
+
+    // Helper function to check if asset is an ETF
+    const isETF = (asset: PortfolioAsset) => {
+        const knownETFs = new Set([
+            'VOO', 'IVV', 'SPY', 'VTI', 'QQQ', 'VUG', 'VEA', 'IEFA', 'VTV', 'BND', 'AGG', 'GLD', 'IWF', 'VGT', 'IEMG', 'VXUS', 'VWO', 'IJH', 'VIG', 'IBIT', 'XLK', 'SPLG', 'VO', 'IJR', 'ITOT', 'RSP', 'BNDX', 'SCHD', 'IWM', 'VB', 'EFA', 'IVW', 'VYM', 'QQQM', 'IWD', 'IAU', 'SCHX', 'SGOV', 'VCIT', 'VT', 'XLF', 'QUAL', 'SCHF', 'SCHG', 'VEU', 'IXUS', 'TLT', 'VV', 'IWR', 'SPYG', 'IWB', 'MBB', 'BIL', 'IVE', 'JEPI', 'DIA', 'VTEB', 'MUB', 'VCSH', 'BSV', 'DFAC', 'IEF', 'SCHB', 'XLV', 'DGRO', 'SMH', 'JPST', 'VGIT', 'VNQ', 'ARKK', 'BOTZ', 'CLOU', 'HERO', 'BUG', 'CIBR', 'LIT', 'ICLN', 'HACK', 'XYLD', 'PFF', 'TLH', 'OEF', 'IOO', 'FTEC', 'RYSPX', 'XSD', 'XBI', 'IHI', 'PSP', 'CQQQ', 'GXC', 'TIP', 'VCLT', 'EDV', 'BKLN', 'SHV', 'USFR', 'KRE', 'PEJ', 'SIL', 'PALL', 'SQQQ', 'TQQQ', 'VRTX', 'VHT', 'VIS', 'VDE', 'XLY', 'XLP', 'XLI', 'XLB', 'XLU', 'ETHU', 'ETHA'
+        ])
+        return knownETFs.has(asset.symbol.replace('.EQ', ''))
+    }
+
+    // ETFs: ETF assets (both .EQ and manual)
+    const etfAssets = portfolio?.assets.filter(asset =>
+        (asset.symbol.endsWith('.EQ') && isETF(asset)) ||
+        (asset.source === 'manual' && asset.asset_type === 'equity' && isETF(asset))
+    ) || []
+
+    // Regular Stocks: Non-ETF .EQ assets OR manual equity assets that aren't ETFs
+    const stockAssets = portfolio?.assets.filter(asset =>
+        (asset.symbol.endsWith('.EQ') && !isETF(asset)) ||
+        (asset.source === 'manual' && asset.asset_type === 'equity' && !isETF(asset))
+    ) || []
+
+    // Manual Assets: Only manual assets with manual type (and only show section if any exist)
+    const manualAssets = portfolio?.assets.filter(asset =>
+        asset.source === 'manual' && asset.asset_type === 'manual'
+    ) || []
+
+    const totalPortfolioValue = portfolio?.totalValue || 0
+
+    const computeGroupMetrics = useMemo(() => {
+        return (assets: PortfolioAsset[]) => {
+            const value = assets.reduce((sum, asset) => sum + (asset.value || 0), 0)
+            const dailyPnL = assets.reduce((sum, asset) => sum + (asset.dailyPnL || 0), 0)
+            const previousValue = assets.reduce((sum, asset) => sum + ((asset.value || 0) - (asset.dailyPnL || 0)), 0)
+            const dailyPnLPercentage = previousValue > 0 ? (dailyPnL / previousValue) * 100 : 0
+            const shareOfTotal = totalPortfolioValue > 0 ? (value / totalPortfolioValue) * 100 : 0
+
+            return {
+                value,
+                dailyPnL,
+                dailyPnLPercentage,
+                shareOfTotal,
+            }
+        }
+    }, [totalPortfolioValue])
+
+    const cryptoMetrics = computeGroupMetrics(cryptoAssets)
+    const etfMetrics = computeGroupMetrics(etfAssets)
+    const stockMetrics = computeGroupMetrics(stockAssets)
+    const manualMetrics = computeGroupMetrics(manualAssets)
 
     if (error) {
         return (
@@ -53,15 +111,6 @@ export function PortfolioDashboard() {
         )
     }
 
-    // Group assets by type and calculate totals
-    const cryptoAssets = portfolio?.assets.filter(asset => asset.source === 'kraken' && !asset.symbol.endsWith('.EQ')) || []
-    const equityAssets = portfolio?.assets.filter(asset => asset.symbol.endsWith('.EQ')) || []
-    const manualAssets = portfolio?.assets.filter(asset => asset.source === 'manual') || []
-
-    const cryptoTotal = cryptoAssets.reduce((sum, asset) => sum + asset.value, 0)
-    const equityTotal = equityAssets.reduce((sum, asset) => sum + asset.value, 0)
-    const manualTotal = manualAssets.reduce((sum, asset) => sum + asset.value, 0)
-
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -69,6 +118,42 @@ export function PortfolioDashboard() {
             minimumFractionDigits: 0,
             maximumFractionDigits: 0,
         }).format(value)
+    }
+
+    const formatShare = (value: number) => `${value.toFixed(2)}%`
+    const getPnLClass = (value: number) => {
+        if (value > 0) return 'text-green-600 dark:text-green-400'
+        if (value < 0) return 'text-red-600 dark:text-red-400'
+        return 'text-gray-500 dark:text-gray-400'
+    }
+
+    const renderCollapsedMetrics = (metrics: ReturnType<typeof computeGroupMetrics>, accentColor: string) => {
+        return (
+            <div className="flex justify-end items-start space-x-6">
+                {/* Total Value Section */}
+                <div className="text-right">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        {formatShare(metrics.shareOfTotal)} of total
+                    </div>
+                    <div className="text-lg md:text-xl font-bold" style={{ color: accentColor }}>
+                        {formatCurrency(metrics.value)}
+                    </div>
+                </div>
+
+                {/* Daily P&L Section */}
+                <div className="text-right min-w-[100px]">
+                    <div className={`text-xs text-gray-500 dark:text-gray-400 mb-1`}>
+                        Daily P&L
+                    </div>
+                    <div className={`text-lg md:text-xl font-semibold ${getPnLClass(metrics.dailyPnL)}`}>
+                        {formatCurrency(metrics.dailyPnL)}
+                    </div>
+                    <div className={`text-xs ${getPnLClass(metrics.dailyPnL)}`}>
+                        {formatShare(metrics.dailyPnLPercentage)}
+                    </div>
+                </div>
+            </div>
+        )
     }
 
     return (
@@ -95,15 +180,12 @@ export function PortfolioDashboard() {
                                         )}
                                     </button>
                                     <div className="w-4 h-4 rounded-full" style={{ backgroundColor: 'var(--crypto-primary)' }}></div>
-                                    <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">Cryptocurrencies</h3>
+                                    <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
+                                        Cryptocurrencies ({cryptoAssets.length})
+                                    </h3>
                                 </div>
-                                <div className="flex items-center justify-between sm:justify-end space-x-4">
-                                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                                        {cryptoAssets.length} asset{cryptoAssets.length !== 1 ? 's' : ''}
-                                    </span>
-                                    <span className="text-lg md:text-xl font-bold" style={{ color: 'var(--crypto-primary)' }}>
-                                        {formatCurrency(cryptoTotal)}
-                                    </span>
+                                <div className="flex items-end justify-between sm:justify-end space-x-4 w-full sm:w-auto">
+                                    {renderCollapsedMetrics(cryptoMetrics, 'var(--crypto-primary)')}
                                 </div>
                             </div>
                             {expandedGroups.crypto && (
@@ -113,9 +195,41 @@ export function PortfolioDashboard() {
                     </div>
                 )}
 
-                {/* Stocks & ETFs Section */}
-                {equityAssets.length > 0 && (
-                    <div className="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-xl border-2 border-orange-300 dark:border-orange-600" style={{ borderColor: 'var(--stock-primary)' }}>
+                {/* ETFs Section */}
+                {etfAssets.length > 0 && (
+                    <div className="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-xl border-2 border-indigo-300 dark:border-indigo-600" style={{ borderColor: 'var(--etf-primary, #6366f1)' }}>
+                        <div className="p-4 md:p-6">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
+                                <div className="flex items-center space-x-3">
+                                    <button
+                                        onClick={() => toggleGroup('etf')}
+                                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                                    >
+                                        {expandedGroups.etf ? (
+                                            <ChevronDown className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                        ) : (
+                                            <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                        )}
+                                    </button>
+                                    <div className="w-4 h-4 rounded-full bg-indigo-500"></div>
+                                    <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
+                                        ETFs ({etfAssets.length})
+                                    </h3>
+                                </div>
+                                <div className="flex items-end justify-between sm:justify-end space-x-4 w-full sm:w-auto">
+                                    {renderCollapsedMetrics(etfMetrics, 'var(--etf-primary, #6366f1)')}
+                                </div>
+                            </div>
+                            {expandedGroups.etf && (
+                                <AssetList assets={etfAssets} group="stock" />
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Stocks Section */}
+                {stockAssets.length > 0 && (
+                    <div className="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-xl border-2 border-purple-300 dark:border-purple-600" style={{ borderColor: 'var(--stock-primary)' }}>
                         <div className="p-4 md:p-6">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
                                 <div className="flex items-center space-x-3">
@@ -130,19 +244,16 @@ export function PortfolioDashboard() {
                                         )}
                                     </button>
                                     <div className="w-4 h-4 rounded-full" style={{ backgroundColor: 'var(--stock-primary)' }}></div>
-                                    <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">Stocks & ETFs</h3>
+                                    <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
+                                        Stocks ({stockAssets.length})
+                                    </h3>
                                 </div>
-                                <div className="flex items-center justify-between sm:justify-end space-x-4">
-                                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                                        {equityAssets.length} asset{equityAssets.length !== 1 ? 's' : ''}
-                                    </span>
-                                    <span className="text-lg md:text-xl font-bold" style={{ color: 'var(--stock-primary)' }}>
-                                        {formatCurrency(equityTotal)}
-                                    </span>
+                                <div className="flex items-end justify-between sm:justify-end space-x-4 w-full sm:w-auto">
+                                    {renderCollapsedMetrics(stockMetrics, 'var(--stock-primary)')}
                                 </div>
                             </div>
                             {expandedGroups.stock && (
-                                <AssetList assets={equityAssets} group="stock" />
+                                <AssetList assets={stockAssets} group="stock" />
                             )}
                         </div>
                     </div>
@@ -165,15 +276,12 @@ export function PortfolioDashboard() {
                                         )}
                                     </button>
                                     <div className="w-4 h-4 rounded-full" style={{ backgroundColor: 'var(--manual-primary)' }}></div>
-                                    <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">Manual Assets</h3>
+                                    <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
+                                        Manual Assets ({manualAssets.length})
+                                    </h3>
                                 </div>
-                                <div className="flex items-center justify-between sm:justify-end space-x-4">
-                                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                                        {manualAssets.length} asset{manualAssets.length !== 1 ? 's' : ''}
-                                    </span>
-                                    <span className="text-lg md:text-xl font-bold" style={{ color: 'var(--manual-primary)' }}>
-                                        {formatCurrency(manualTotal)}
-                                    </span>
+                                <div className="flex items-end justify-between sm:justify-end space-x-4 w-full sm:w-auto">
+                                    {renderCollapsedMetrics(manualMetrics, 'var(--manual-primary)')}
                                 </div>
                             </div>
                             {expandedGroups.manual && (
