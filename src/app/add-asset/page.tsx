@@ -9,7 +9,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Plus, ArrowLeft, Search } from 'lucide-react'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Loader2, Plus, ArrowLeft, Search, Upload, FileText, CheckCircle, AlertCircle } from 'lucide-react'
+import Papa from 'papaparse'
 
 // Popular tickers with their display names and types
 const POPULAR_TICKERS = [
@@ -79,6 +81,16 @@ export default function AddAssetPage() {
     const [searchTerm, setSearchTerm] = useState('')
     const [showSuggestions, setShowSuggestions] = useState(false)
     const searchRef = useRef<HTMLDivElement>(null)
+
+    // CSV Upload State
+    const [csvFile, setCsvFile] = useState<File | null>(null)
+    const [csvData, setCsvData] = useState<any[]>([])
+    const [csvHeaders, setCsvHeaders] = useState<string[]>([])
+    const [csvErrors, setCsvErrors] = useState<string[]>([])
+    const [isParsingCsv, setIsParsingCsv] = useState(false)
+    const [showCsvPreview, setShowCsvPreview] = useState(false)
+    const [isAddingCsvAssets, setIsAddingCsvAssets] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -173,6 +185,187 @@ export default function AddAssetPage() {
         }))
     }
 
+    // CSV Upload Functions
+    const handleCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0]
+        if (!file) return
+
+        if (!file.name.endsWith('.csv')) {
+            setCsvErrors(['Please select a CSV file'])
+            return
+        }
+
+        setCsvFile(file)
+        setCsvErrors([])
+        setCsvData([])
+        setCsvHeaders([])
+        setShowCsvPreview(false)
+        parseCsvFile(file)
+    }
+
+    const parseCsvFile = (file: File) => {
+        setIsParsingCsv(true)
+        setCsvErrors([])
+
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            transformHeader: (header: string) => header.trim().toLowerCase(),
+            complete: (results) => {
+                setIsParsingCsv(false)
+
+                if (results.errors.length > 0) {
+                    setCsvErrors(results.errors.map(err => err.message))
+                    return
+                }
+
+                if (!results.data || results.data.length === 0) {
+                    setCsvErrors(['No data found in CSV file'])
+                    return
+                }
+
+                // Validate required columns
+                const data = results.data as any[]
+                const headers = results.meta.fields || []
+
+                const requiredColumns = ['symbol', 'name', 'asset_type', 'quantity', 'cost_basis']
+                const missingColumns = requiredColumns.filter(col => !headers.includes(col))
+
+                if (missingColumns.length > 0) {
+                    setCsvErrors([`Missing required columns: ${missingColumns.join(', ')}`])
+                    return
+                }
+
+                // Validate and clean data
+                const validData: any[] = []
+                const validationErrors: string[] = []
+
+                data.forEach((row, index) => {
+                    const errors: string[] = []
+
+                    // Validate symbol
+                    if (!row.symbol || typeof row.symbol !== 'string' || row.symbol.trim() === '') {
+                        errors.push(`Row ${index + 1}: Missing or invalid symbol`)
+                    }
+
+                    // Validate name
+                    if (!row.name || typeof row.name !== 'string' || row.name.trim() === '') {
+                        errors.push(`Row ${index + 1}: Missing or invalid name`)
+                    }
+
+                    // Validate asset_type
+                    const validTypes = ['crypto', 'equity', 'manual']
+                    if (!row.asset_type || !validTypes.includes(row.asset_type.toLowerCase())) {
+                        errors.push(`Row ${index + 1}: Invalid asset_type. Must be: ${validTypes.join(', ')}`)
+                    }
+
+                    // Validate quantity
+                    const quantity = parseFloat(row.quantity)
+                    if (isNaN(quantity) || quantity <= 0) {
+                        errors.push(`Row ${index + 1}: Invalid quantity. Must be a positive number`)
+                    }
+
+                    // Validate cost_basis
+                    const costBasis = parseFloat(row.cost_basis)
+                    if (isNaN(costBasis) || costBasis < 0) {
+                        errors.push(`Row ${index + 1}: Invalid cost_basis. Must be a non-negative number`)
+                    }
+
+                    if (errors.length === 0) {
+                        validData.push({
+                            symbol: row.symbol.trim().toUpperCase(),
+                            name: row.name.trim(),
+                            asset_type: row.asset_type.toLowerCase(),
+                            quantity: quantity,
+                            cost_basis: costBasis,
+                            rowNumber: index + 1
+                        })
+                    } else {
+                        validationErrors.push(...errors)
+                    }
+                })
+
+                if (validationErrors.length > 0) {
+                    setCsvErrors(validationErrors.slice(0, 10)) // Show first 10 errors
+                    if (validationErrors.length > 10) {
+                        setCsvErrors(prev => [...prev, `... and ${validationErrors.length - 10} more errors`])
+                    }
+                } else if (validData.length === 0) {
+                    setCsvErrors(['No valid data rows found after validation'])
+                } else {
+                    setCsvData(validData)
+                    setCsvHeaders(headers)
+                    setShowCsvPreview(true)
+                }
+            },
+            error: (error) => {
+                setIsParsingCsv(false)
+                setCsvErrors([`Failed to parse CSV: ${error.message}`])
+            }
+        })
+    }
+
+    const handleAddCsvAssets = async () => {
+        if (csvData.length === 0) return
+
+        setIsAddingCsvAssets(true)
+        setCsvErrors([])
+
+        try {
+            let successCount = 0
+            let errorCount = 0
+            const errors: string[] = []
+
+            for (const asset of csvData) {
+                try {
+                    await addManualAsset({
+                        symbol: asset.symbol,
+                        name: asset.name,
+                        asset_type: asset.asset_type as 'crypto' | 'equity' | 'manual',
+                        quantity: asset.quantity,
+                        cost_basis: asset.cost_basis,
+                    })
+                    successCount++
+                } catch (error) {
+                    errorCount++
+                    errors.push(`Failed to add ${asset.name} (${asset.symbol}): ${error instanceof Error ? error.message : 'Unknown error'}`)
+                }
+            }
+
+            if (errorCount === 0) {
+                setSuccess(`Successfully added ${successCount} assets from CSV!`)
+                setCsvFile(null)
+                setCsvData([])
+                setCsvHeaders([])
+                setShowCsvPreview(false)
+                setTimeout(() => {
+                    router.push('/')
+                }, 2000)
+            } else {
+                setCsvErrors(errors.slice(0, 5)) // Show first 5 errors
+                if (errors.length > 5) {
+                    setCsvErrors(prev => [...prev, `... and ${errors.length - 5} more errors`])
+                }
+                setSuccess(`${successCount} assets added successfully, ${errorCount} failed`)
+            }
+        } catch (error) {
+            setCsvErrors([`Bulk operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`])
+        } finally {
+            setIsAddingCsvAssets(false)
+        }
+    }
+
+    const resetCsvUpload = () => {
+        setCsvFile(null)
+        setCsvData([])
+        setCsvHeaders([])
+        setCsvErrors([])
+        setShowCsvPreview(false)
+        if (fileInputRef.current) {
+            fileInputRef.current.value = ''
+        }
+    }
+
     return (
         <MainLayout>
             <div className="space-y-6">
@@ -189,11 +382,161 @@ export default function AddAssetPage() {
                 </div>
 
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Add Manual Asset</h2>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Add Manual Assets</h2>
                     <p className="mt-1 text-sm text-gray-700 dark:text-gray-200">
-                        Add cryptocurrencies or assets that aren&apos;t held on Kraken
+                        Add cryptocurrencies or assets that aren&apos;t held on Kraken - individually or via CSV upload
                     </p>
                 </div>
+
+                {/* CSV Upload Section */}
+                <Card className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
+                    <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                            <Upload className="w-5 h-5" />
+                            <span>Bulk Upload via CSV</span>
+                        </CardTitle>
+                        <CardDescription className="text-gray-700 dark:text-gray-300">
+                            Upload a CSV file to add multiple assets at once. The CSV must include columns: symbol, name, asset_type, quantity, cost_basis
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {/* File Upload */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-800 dark:text-gray-100 mb-2">
+                                CSV File
+                            </label>
+                            <div className="flex items-center space-x-4">
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".csv"
+                                    onChange={handleCsvUpload}
+                                    className="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-blue-900/30 dark:file:text-blue-300"
+                                />
+                                {csvFile && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={resetCsvUpload}
+                                    >
+                                        Clear
+                                    </Button>
+                                )}
+                            </div>
+                            <p className="mt-1 text-xs text-gray-700 dark:text-gray-300">
+                                Select a CSV file with columns: symbol, name, asset_type, quantity, cost_basis
+                            </p>
+                        </div>
+
+                        {/* CSV Processing Status */}
+                        {isParsingCsv && (
+                            <div className="flex items-center space-x-2 text-sm text-blue-600 dark:text-blue-400">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Parsing CSV file...</span>
+                            </div>
+                        )}
+
+                        {/* CSV Errors */}
+                        {csvErrors.length > 0 && (
+                            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                                <div className="flex items-center space-x-2 text-red-800 dark:text-red-200 mb-2">
+                                    <AlertCircle className="w-4 h-4" />
+                                    <span className="font-medium">CSV Validation Errors</span>
+                                </div>
+                                <ul className="text-sm text-red-700 dark:text-red-300 space-y-1">
+                                    {csvErrors.map((error, index) => (
+                                        <li key={index}>• {error}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {/* CSV Preview */}
+                        {showCsvPreview && csvData.length > 0 && (
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-2 text-green-600 dark:text-green-400">
+                                        <CheckCircle className="w-4 h-4" />
+                                        <span className="font-medium">Ready to Add {csvData.length} Assets</span>
+                                    </div>
+                                    <Button
+                                        onClick={handleAddCsvAssets}
+                                        disabled={isAddingCsvAssets}
+                                        className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
+                                    >
+                                        {isAddingCsvAssets && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Add All Assets
+                                    </Button>
+                                </div>
+
+                                <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                                    <div className="max-h-96 overflow-y-auto">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow className="bg-gray-50 dark:bg-gray-800">
+                                                    <TableHead className="text-xs font-medium">Symbol</TableHead>
+                                                    <TableHead className="text-xs font-medium">Name</TableHead>
+                                                    <TableHead className="text-xs font-medium">Type</TableHead>
+                                                    <TableHead className="text-xs font-medium">Quantity</TableHead>
+                                                    <TableHead className="text-xs font-medium">Cost Basis</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {csvData.slice(0, 10).map((asset, index) => (
+                                                    <TableRow key={index}>
+                                                        <TableCell className="font-mono text-sm">{asset.symbol}</TableCell>
+                                                        <TableCell className="text-sm">{asset.name}</TableCell>
+                                                        <TableCell>
+                                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${asset.asset_type === 'crypto'
+                                                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                                                                    : asset.asset_type === 'equity'
+                                                                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                                                                        : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+                                                                }`}>
+                                                                {asset.asset_type}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell className="text-sm">{asset.quantity.toLocaleString()}</TableCell>
+                                                        <TableCell className="text-sm">${asset.cost_basis.toLocaleString()}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                                {csvData.length > 10 && (
+                                                    <TableRow>
+                                                        <TableCell colSpan={5} className="text-center text-sm text-gray-500 dark:text-gray-400 py-2">
+                                                            ... and {csvData.length - 10} more assets
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* CSV Template Download */}
+                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                            <div className="flex items-start space-x-2">
+                                <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5" />
+                                <div className="flex-1">
+                                    <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">CSV Format Requirements</h4>
+                                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                                        Download a template or ensure your CSV has these exact column headers (case-insensitive):
+                                    </p>
+                                    <div className="mt-2 text-xs font-mono text-blue-800 dark:text-blue-200 bg-blue-100 dark:bg-blue-900/30 p-2 rounded">
+                                        symbol, name, asset_type, quantity, cost_basis
+                                    </div>
+                                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-2">
+                                        • <strong>asset_type</strong>: crypto, equity, or manual<br />
+                                        • <strong>quantity</strong>: positive number<br />
+                                        • <strong>cost_basis</strong>: non-negative number
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
 
                 <div className="max-w-2xl">
                     <Card className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">

@@ -41,167 +41,55 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
             // Small delay to ensure auth state is stable
             await new Promise(resolve => setTimeout(resolve, 100))
 
-            // Fetch portfolio data from API
-            console.log('Fetching portfolio from API...')
-            const response = await fetch('/api/kraken/portfolio', {
-                headers: {
-                    'Authorization': `Bearer ${session.access_token}`
-                }
-            })
-            console.log('Response status:', response.status)
-
-            if (!response.ok) {
-                const errorText = await response.text()
-                console.error('API error response:', errorText)
-                let error
-                try {
-                    error = JSON.parse(errorText)
-                } catch {
-                    error = { error: errorText }
-                }
-
-                // Check if it's a nonce error and retry once
-                if (errorText.includes('Invalid nonce') || error.error?.includes('Invalid nonce')) {
-                    console.log('Nonce error detected, retrying...')
-                    await new Promise(resolve => setTimeout(resolve, 1000)) // Wait longer before retry
-
-                    try {
-                        const retryResponse = await fetch('/api/kraken/portfolio', {
-                            headers: {
-                                'Authorization': `Bearer ${session.access_token}`
-                            }
-                        })
-
-                        if (retryResponse.ok) {
-                            const portfolioData = await retryResponse.json()
-                            console.log('Retry successful, portfolio data received:', portfolioData)
-
-                            // Include manual assets
-                            const { data: manualAssets } = await supabase
-                                .from('manual_assets')
-                                .select('*')
-                                .eq('user_id', session.user.id)
-
-                            // If we have manual assets, fetch real prices for supported tickers
-                            if (manualAssets && manualAssets.length > 0) {
-                                const manualSymbols = manualAssets.map(asset => asset.symbol)
-                                console.log('Fetching prices for manual assets:', manualSymbols)
-
-                                // Fetch real prices for supported tickers
-                                const manualPrices = await fetchManualAssetPrices(manualSymbols)
-
-                                const manualPortfolioAssets = manualAssets.map(asset => {
-                                    const realPriceData = manualPrices[asset.symbol]
-                                    const currentPrice = realPriceData?.currentPrice || parseFloat(asset.cost_basis)
-                                    const previousPrice = realPriceData && typeof realPriceData.previousClose === 'number' && realPriceData.previousClose > 0
-                                        ? realPriceData.previousClose
-                                        : currentPrice
-                                    const quantity = parseFloat(asset.quantity)
-                                    const costBasis = parseFloat(asset.cost_basis)
-                                    const value = quantity * currentPrice
-
-                                    // Calculate P&L if we have a real price
-                                    let dailyPnL = 0
-                                    let dailyPnLPercentage = 0
-                                    let unrealizedPnL = 0
-                                    let unrealizedPnLPercentage = 0
-
-                                    if (realPriceData && previousPrice > 0) {
-                                        const previousValue = quantity * previousPrice
-                                        dailyPnL = value - previousValue
-                                        dailyPnLPercentage = previousValue > 0 ? (dailyPnL / previousValue) * 100 : 0
-
-                                        // Calculate unrealized P&L using cost basis
-                                        unrealizedPnL = value - costBasis
-                                        unrealizedPnLPercentage = costBasis > 0 ? (unrealizedPnL / costBasis) * 100 : 0
-
-                                        console.log(`${asset.symbol}: Current $${currentPrice}, Previous $${previousPrice}, Daily P&L $${dailyPnL.toFixed(2)}`)
-                                    }
-
-                                    // Clean up symbol and name for display
-                                    const cleanSymbol = asset.symbol.endsWith('.EQ') ? asset.symbol.replace('.EQ', '') : asset.symbol
-                                    const cleanName = asset.name.endsWith('.EQ') ? asset.name.replace('.EQ', '') : asset.name
-
-                                    return {
-                                        symbol: asset.symbol, // Keep original symbol for processing
-                                        name: cleanName,
-                                        asset_type: asset.asset_type,
-                                        balance: quantity,
-                                        currentPrice,
-                                        costBasis,
-                                        value,
-                                        dailyPnL,
-                                        dailyPnLPercentage,
-                                        unrealizedPnL,
-                                        unrealizedPnLPercentage,
-                                        source: 'manual' as const,
-                                        manualId: asset.id,
-                                        ...(currentPrice === costBasis ? { note: 'No real-time price data available' } : {})
-                                    }
-                                })
-
-                                const apiTotalValue = portfolioData.totalValue || 0
-                                const apiDailyPnL = portfolioData.totalDailyPnL || 0
-                                const apiCostBasis = portfolioData.totalCostBasis || 0
-                                const apiUnrealizedPnL = portfolioData.totalUnrealizedPnL || 0
-
-                                portfolioData.assets = [...portfolioData.assets, ...manualPortfolioAssets]
-
-                                // Aggregate manual totals
-                                const manualValueSum = manualPortfolioAssets.reduce((sum, a) => sum + (a.value || 0), 0)
-                                const manualDailyPnLSum = manualPortfolioAssets.reduce((sum, a) => sum + (a.dailyPnL || 0), 0)
-                                const manualOpenTotal = manualPortfolioAssets.reduce((sum, a) => sum + ((a.value || 0) - (a.dailyPnL || 0)), 0)
-                                const manualCostBasisSum = manualPortfolioAssets.reduce((sum, a) => sum + safeNumber(a.costBasis), 0)
-                                const manualUnrealizedPnLSum = manualPortfolioAssets.reduce((sum, a) => sum + safeNumber(a.unrealizedPnL), 0)
-
-                                // Combine with API totals
-                                portfolioData.totalValue = apiTotalValue + manualValueSum
-                                portfolioData.totalDailyPnL = apiDailyPnL + manualDailyPnLSum
-                                portfolioData.totalCostBasis = apiCostBasis + manualCostBasisSum
-                                portfolioData.totalUnrealizedPnL = apiUnrealizedPnL + manualUnrealizedPnLSum
-                                const apiOpenTotal = apiTotalValue - apiDailyPnL
-                                const combinedOpenTotal = apiOpenTotal + manualOpenTotal
-                                portfolioData.totalDailyPnLPercentage = combinedOpenTotal > 0
-                                    ? (portfolioData.totalDailyPnL / combinedOpenTotal) * 100
-                                    : 0
-                                const combinedCostBasis = portfolioData.totalCostBasis || 0
-                                portfolioData.totalUnrealizedPnLPercentage = combinedCostBasis > 0
-                                    ? (portfolioData.totalUnrealizedPnL / combinedCostBasis) * 100
-                                    : 0
-                            }
-
-                            set({ portfolio: portfolioData as Portfolio, isLoading: false })
-                            return
-                        } else {
-                            // Retry also failed, use the retry error for the final error
-                            const retryErrorText = await retryResponse.text()
-                            console.error('Retry also failed:', retryErrorText)
-                            error = { error: retryErrorText }
-                        }
-                    } catch (retryError) {
-                        console.error('Retry failed with exception:', retryError)
-                        // Continue with original error
-                    }
-                }
-
-                throw new Error(error.error || 'Failed to fetch portfolio')
-            }
-
-            const portfolioData = await response.json()
-            console.log('Portfolio data received:', portfolioData)
-
-            // Include manual assets
+            // First, check if we have manual assets - if so, we can show a portfolio even without API keys
             const { data: manualAssets } = await supabase
                 .from('manual_assets')
                 .select('*')
                 .eq('user_id', session.user.id)
 
-            // If we have manual assets, fetch real prices for supported tickers
+            let portfolioData: any = null
+            let hasApiData = false
+
+            // Try to fetch from Kraken API, but don't fail if it doesn't work
+            try {
+                console.log('Fetching portfolio from API...')
+                const response = await fetch('/api/kraken/portfolio', {
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`
+                    }
+                })
+
+                if (response.ok) {
+                    portfolioData = await response.json()
+                    console.log('Portfolio data received from API:', portfolioData)
+                    hasApiData = true
+                } else {
+                    console.log('API request failed, will use manual assets only')
+                }
+            } catch (apiError) {
+                console.log('API not available, will use manual assets only:', apiError)
+            }
+
+            // If we have manual assets, create a portfolio from them
             if (manualAssets && manualAssets.length > 0) {
-                const manualSymbols = manualAssets.map(asset => asset.symbol)
-                console.log('Fetching prices for manual assets (retry):', manualSymbols)
+                console.log('Processing manual assets:', manualAssets.length)
+
+                // If we don't have API data, create a basic portfolio structure
+                if (!hasApiData) {
+                    portfolioData = {
+                        assets: [],
+                        totalValue: 0,
+                        totalDailyPnL: 0,
+                        totalDailyPnLPercentage: 0,
+                        totalCostBasis: 0,
+                        totalUnrealizedPnL: 0,
+                        totalUnrealizedPnLPercentage: 0,
+                        lastUpdated: new Date().toISOString()
+                    }
+                }
 
                 // Fetch real prices for supported tickers
+                const manualSymbols = manualAssets.map(asset => asset.symbol)
                 const manualPrices = await fetchManualAssetPrices(manualSymbols)
 
                 const manualPortfolioAssets = manualAssets.map(asset => {
@@ -228,8 +116,6 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
                         // Calculate unrealized P&L using cost basis
                         unrealizedPnL = value - costBasis
                         unrealizedPnLPercentage = costBasis > 0 ? (unrealizedPnL / costBasis) * 100 : 0
-
-                        console.log(`${asset.symbol} (retry): Current $${currentPrice}, Previous $${previousPrice}, Daily P&L $${dailyPnL.toFixed(2)}`)
                     }
 
                     // Clean up symbol and name for display
@@ -237,7 +123,7 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
                     const cleanName = asset.name.endsWith('.EQ') ? asset.name.replace('.EQ', '') : asset.name
 
                     return {
-                        symbol: asset.symbol, // Keep original symbol for processing
+                        symbol: asset.symbol,
                         name: cleanName,
                         asset_type: asset.asset_type,
                         balance: quantity,
@@ -254,32 +140,54 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
                     }
                 })
 
-                const apiTotalValue2 = portfolioData.totalValue || 0
-                const apiDailyPnL2 = portfolioData.totalDailyPnL || 0
-                const apiCostBasis2 = portfolioData.totalCostBasis || 0
-                const apiUnrealizedPnL2 = portfolioData.totalUnrealizedPnL || 0
+                // Combine API assets with manual assets
+                if (hasApiData && portfolioData) {
+                    portfolioData.assets = [...(portfolioData.assets || []), ...manualPortfolioAssets]
 
-                portfolioData.assets = [...portfolioData.assets, ...manualPortfolioAssets]
+                    // Aggregate manual totals
+                    const manualValueSum = manualPortfolioAssets.reduce((sum, a) => sum + (a.value || 0), 0)
+                    const manualDailyPnLSum = manualPortfolioAssets.reduce((sum, a) => sum + (a.dailyPnL || 0), 0)
+                    const manualCostBasisSum = manualPortfolioAssets.reduce((sum, a) => sum + safeNumber(a.costBasis), 0)
+                    const manualUnrealizedPnLSum = manualPortfolioAssets.reduce((sum, a) => sum + safeNumber(a.unrealizedPnL), 0)
 
-                const manualValueSum2 = manualPortfolioAssets.reduce((sum, a) => sum + (a.value || 0), 0)
-                const manualDailyPnLSum2 = manualPortfolioAssets.reduce((sum, a) => sum + (a.dailyPnL || 0), 0)
-                const manualOpenTotal2 = manualPortfolioAssets.reduce((sum, a) => sum + ((a.value || 0) - (a.dailyPnL || 0)), 0)
-                const manualCostBasisSum2 = manualPortfolioAssets.reduce((sum, a) => sum + safeNumber(a.costBasis), 0)
-                const manualUnrealizedPnLSum2 = manualPortfolioAssets.reduce((sum, a) => sum + safeNumber(a.unrealizedPnL), 0)
+                    // Combine with API totals
+                    portfolioData.totalValue = (portfolioData.totalValue || 0) + manualValueSum
+                    portfolioData.totalDailyPnL = (portfolioData.totalDailyPnL || 0) + manualDailyPnLSum
+                    portfolioData.totalCostBasis = (portfolioData.totalCostBasis || 0) + manualCostBasisSum
+                    portfolioData.totalUnrealizedPnL = (portfolioData.totalUnrealizedPnL || 0) + manualUnrealizedPnLSum
 
-                portfolioData.totalValue = apiTotalValue2 + manualValueSum2
-                portfolioData.totalDailyPnL = apiDailyPnL2 + manualDailyPnLSum2
-                portfolioData.totalCostBasis = apiCostBasis2 + manualCostBasisSum2
-                portfolioData.totalUnrealizedPnL = apiUnrealizedPnL2 + manualUnrealizedPnLSum2
-                const apiOpenTotal2 = apiTotalValue2 - apiDailyPnL2
-                const combinedOpenTotal2 = apiOpenTotal2 + manualOpenTotal2
-                portfolioData.totalDailyPnLPercentage = combinedOpenTotal2 > 0
-                    ? (portfolioData.totalDailyPnL / combinedOpenTotal2) * 100
-                    : 0
-                const combinedCostBasis2 = portfolioData.totalCostBasis || 0
-                portfolioData.totalUnrealizedPnLPercentage = combinedCostBasis2 > 0
-                    ? (portfolioData.totalUnrealizedPnL / combinedCostBasis2) * 100
-                    : 0
+                    const apiOpenTotal = (portfolioData.totalValue || 0) - (portfolioData.totalDailyPnL || 0)
+                    const manualOpenTotal = manualPortfolioAssets.reduce((sum, a) => sum + ((a.value || 0) - (a.dailyPnL || 0)), 0)
+                    const combinedOpenTotal = apiOpenTotal + manualOpenTotal
+
+                    portfolioData.totalDailyPnLPercentage = combinedOpenTotal > 0
+                        ? (portfolioData.totalDailyPnL / combinedOpenTotal) * 100
+                        : 0
+
+                    const combinedCostBasis = portfolioData.totalCostBasis || 0
+                    portfolioData.totalUnrealizedPnLPercentage = combinedCostBasis > 0
+                        ? (portfolioData.totalUnrealizedPnL / combinedCostBasis) * 100
+                        : 0
+                } else {
+                    // Only manual assets - use them as the complete portfolio
+                    portfolioData.assets = manualPortfolioAssets
+                    portfolioData.totalValue = manualPortfolioAssets.reduce((sum, a) => sum + (a.value || 0), 0)
+                    portfolioData.totalDailyPnL = manualPortfolioAssets.reduce((sum, a) => sum + (a.dailyPnL || 0), 0)
+                    portfolioData.totalCostBasis = manualPortfolioAssets.reduce((sum, a) => sum + safeNumber(a.costBasis), 0)
+                    portfolioData.totalUnrealizedPnL = manualPortfolioAssets.reduce((sum, a) => sum + safeNumber(a.unrealizedPnL), 0)
+
+                    const manualOpenTotal = manualPortfolioAssets.reduce((sum, a) => sum + ((a.value || 0) - (a.dailyPnL || 0)), 0)
+                    portfolioData.totalDailyPnLPercentage = manualOpenTotal > 0
+                        ? (portfolioData.totalDailyPnL / manualOpenTotal) * 100
+                        : 0
+
+                    portfolioData.totalUnrealizedPnLPercentage = portfolioData.totalCostBasis > 0
+                        ? (portfolioData.totalUnrealizedPnL / portfolioData.totalCostBasis) * 100
+                        : 0
+                }
+            } else if (!hasApiData) {
+                // No manual assets and no API data - this is when we should show an error
+                throw new Error('No API keys found. Please configure your Kraken API keys in settings.')
             }
 
             set({ portfolio: portfolioData as Portfolio, isLoading: false })
