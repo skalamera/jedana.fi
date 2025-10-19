@@ -406,13 +406,13 @@ export default function PortfolioReviewPage() {
                     </CardContent>
                 </Card>
 
-                {/* Section 5: Must Sell */}
+                {/* Section 5: Critical Action Required */}
                 {review.mustSell.hasRecommendations && review.mustSell.recommendations.length > 0 ? (
                     <Card className="shadow-lg border-red-200 dark:border-red-800">
                         <CardHeader className="pb-4">
                             <CardTitle className="flex items-center space-x-2 text-xl text-red-600">
                                 <AlertTriangle className="w-5 h-5" />
-                                <span>Must Sell Recommendations</span>
+                                <span>Critical Action Required</span>
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -476,7 +476,7 @@ export default function PortfolioReviewPage() {
                         <CardHeader className="pb-4">
                             <CardTitle className="flex items-center space-x-2 text-xl text-green-600">
                                 <Shield className="w-5 h-5" />
-                                <span>No Immediate Sell Recommendations</span>
+                                <span>Portfolio Health Confirmed</span>
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -487,11 +487,10 @@ export default function PortfolioReviewPage() {
                                     </svg>
                                 </div>
                                 <p className="text-green-800 dark:text-green-200 text-lg font-medium mb-2">
-                                    Excellent! All holdings are suitable for continued long-term investment.
+                                    ✅ No assets require immediate action
                                 </p>
                                 <p className="text-green-700 dark:text-green-300 text-sm">
-                                    Your portfolio shows strong fundamentals with no assets requiring immediate divestment.
-                                    Continue with your long-term investment strategy.
+                                    All holdings pass our strict criteria for continued investment. The AI analysis found no critical issues requiring urgent divestment. This is the expected outcome for a well-constructed, long-term portfolio.
                                 </p>
                             </div>
                         </CardContent>

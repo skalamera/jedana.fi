@@ -122,9 +122,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
     clearSession: async () => {
         console.log('🧹 Clearing session and local storage...')
         try {
-            // Clear Supabase session
+            // Clear Supabase session first
             if (isSupabaseConfigured()) {
-                await supabase.auth.signOut()
+                try {
+                    await supabase.auth.signOut()
+                } catch (signOutError) {
+                    console.warn('⚠️ Error during sign out:', signOutError)
+                    // Continue with localStorage cleanup even if sign out fails
+                }
             }
 
             // Clear all auth-related local storage
@@ -132,6 +137,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
                 const keysToRemove = Object.keys(localStorage).filter(key =>
                     key.includes('supabase') || key.includes('auth')
                 )
+                console.log('🗑️ Removing localStorage keys:', keysToRemove)
                 keysToRemove.forEach(key => localStorage.removeItem(key))
             }
 
@@ -139,6 +145,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
             console.log('✅ Session cleared successfully')
         } catch (error) {
             console.error('❌ Error clearing session:', error)
+            // Ensure we still set the state even if there was an error
             set({ user: null, isLoading: false })
         }
     },
@@ -147,45 +154,67 @@ export const useAuthStore = create<AuthStore>((set) => ({
 // Initialize auth state - run this after the store is created
 console.log('🔧 Setting up auth state listener...')
 
-// Check for existing session immediately
-supabase.auth.getSession().then(({ data: { session }, error }) => {
-    console.log('🔍 Initial session check:', { hasSession: !!session, error })
+// Check for existing session immediately with better error handling
+const initializeAuth = async () => {
+    try {
+        console.log('🔍 Checking for existing session...')
+        const { data: { session }, error } = await supabase.auth.getSession()
 
-    // Handle refresh token errors specifically
-    if (error && error.message.includes('Refresh Token')) {
-        console.warn('🔄 Refresh token invalid, clearing session...')
-        // Clear the session to force re-authentication
-        supabase.auth.signOut().then(() => {
-            console.log('✅ Session cleared due to invalid refresh token')
+        // Handle various error scenarios gracefully
+        if (error) {
+            console.warn('⚠️ Session check error:', error.message)
+
+            // Handle refresh token errors specifically
+            if (error.message.includes('Refresh Token') || error.message.includes('refresh_token_not_found')) {
+                console.warn('🔄 Invalid or missing refresh token, clearing any stale session data...')
+
+                // Clear stale session data from localStorage
+                if (typeof window !== 'undefined') {
+                    const keysToRemove = Object.keys(localStorage).filter(key =>
+                        key.includes('supabase') || key.includes('auth')
+                    )
+                    keysToRemove.forEach(key => localStorage.removeItem(key))
+                }
+
+                // Sign out to clear any remaining session state
+                try {
+                    await supabase.auth.signOut()
+                } catch (signOutError) {
+                    console.warn('⚠️ Error during sign out cleanup:', signOutError)
+                }
+
+                useAuthStore.setState({ user: null, isLoading: false })
+                return
+            }
+
+            // For other errors, still clear the session to be safe
             useAuthStore.setState({ user: null, isLoading: false })
-        })
-        return
-    }
-
-    if (session?.user) {
-        const userData: User = {
-            id: session.user.id,
-            email: session.user.email || '',
-            created_at: session.user.created_at || new Date().toISOString(),
-            updated_at: session.user.updated_at || new Date().toISOString()
+            return
         }
-        console.log('👤 Found existing session, setting user:', userData)
-        useAuthStore.setState({ user: userData, isLoading: false })
-    } else {
-        console.log('🚪 No existing session found')
+
+        if (session?.user) {
+            const userData: User = {
+                id: session.user.id,
+                email: session.user.email || '',
+                created_at: session.user.created_at || new Date().toISOString(),
+                updated_at: session.user.updated_at || new Date().toISOString()
+            }
+            console.log('👤 Found existing session, setting user:', userData)
+            useAuthStore.setState({ user: userData, isLoading: false })
+        } else {
+            console.log('🚪 No existing session found')
+            useAuthStore.setState({ user: null, isLoading: false })
+        }
+    } catch (error) {
+        console.error('❌ Unexpected error during session initialization:', error)
+
+        // Ensure we don't get stuck in loading state
         useAuthStore.setState({ user: null, isLoading: false })
     }
-}).catch((error) => {
-    console.error('❌ Error checking initial session:', error)
+}
 
-    // If it's a refresh token error, clear the session
-    if (error?.message?.includes('Refresh Token')) {
-        console.warn('🔄 Clearing session due to refresh token error')
-        supabase.auth.signOut()
-    }
-
-    useAuthStore.setState({ user: null, isLoading: false })
-})
+// Initialize auth state
+initializeAuth()
 
 supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
     console.log('🔄 Auth state changed:', event, {
@@ -194,10 +223,17 @@ supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session 
         userEmail: session?.user?.email
     })
 
-    // Handle token refresh errors
+    // Handle token refresh errors more comprehensively
     if (event === 'TOKEN_REFRESHED' && !session) {
         console.warn('🔄 Token refresh failed, clearing session...')
         useAuthStore.getState().clearSession()
+        return
+    }
+
+    // Handle signed out events that might be due to token issues
+    if (event === 'SIGNED_OUT' && !session) {
+        console.log('🚪 User signed out')
+        useAuthStore.setState({ user: null, isLoading: false })
         return
     }
 
@@ -246,7 +282,8 @@ supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session 
                 console.error('💥 Error during background profile operations:', error)
             }
         }, 100) // Small delay to ensure UI updates first
-    } else {
+    } else if (event !== 'TOKEN_REFRESHED') {
+        // Only set user to null if it's not a token refresh event (to avoid race conditions)
         console.log('🚪 User signed out or session ended')
         useAuthStore.setState({ user: null, isLoading: false })
     }

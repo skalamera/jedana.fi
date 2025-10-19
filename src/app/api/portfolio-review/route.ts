@@ -112,31 +112,28 @@ Analyze the user's portfolio and return data in this exact format:
         }
     ],
     "mustSell": {
-        "hasRecommendations": true,
-        "recommendations": [
-            {
-                "symbol": "NVDA",
-                "name": "NVIDIA Corporation",
-                "reasoning": "NVIDIA has experienced extreme volatility and is currently overvalued at 45x forward earnings. Recent quarterly results showed slowing growth in the data center segment, and competitive pressures from AMD and Intel are increasing. The stock has risen over 200% in the past year, creating an unsustainable valuation bubble that could burst with any negative news. Regulatory scrutiny on AI chip exports to China poses additional downside risks.",
-                "evidence": [
-                    "Forward P/E ratio of 45x vs industry average of 25x",
-                    "Q3 revenue growth slowed to 15% vs 50%+ in previous quarters",
-                    "Increasing competition from AMD's MI300X and Intel's Gaudi chips",
-                    "Regulatory risks from US-China chip export restrictions",
-                    "Technical indicators showing RSI over 70 (overbought)"
-                ],
-                "action": "Sell immediately and consider put options for downside protection",
-                "timeframe": "Within 2 weeks",
-                "targetPrice": 650,
-                "stopLoss": 800
-            }
-        ]
+        "hasRecommendations": false,
+        "recommendations": []
     }
 }
 
 IMPORTANT: Calculate ACTUAL allocation percentages by VALUE, not by number of assets. Use the portfolio data provided to generate realistic values and analysis.
 
-For the mustSell section: Only recommend selling if there are extremely compelling reasons (regulatory issues, fundamental deterioration, extreme overvaluation with clear catalysts for decline). Most assets should NOT be recommended for sale as the default strategy is long-term holding. If recommending a sale, provide extremely detailed evidence, specific price targets, and clear reasoning.`
+For the mustSell section: ONLY recommend selling if assets require IMMEDIATE ACTION due to critical issues that could cause significant and imminent harm to the portfolio. This is extremely rare and should only apply to:
+
+1. Assets facing imminent bankruptcy, delisting, or regulatory bans
+2. Assets involved in major scandals, fraud, or criminal investigations that will likely result in total loss
+3. Assets with confirmed terminal business model failure (not just temporary setbacks)
+4. Assets subject to immediate government seizure, nationalization, or forced liquidation
+
+DO NOT recommend selling for:
+- Normal market volatility or corrections
+- Temporary business challenges or earnings misses
+- Competitive pressures or market share losses (unless terminal)
+- Overvaluation concerns (even extreme ones)
+- Sector rotations or economic cycles
+
+The default response should be no recommendations (hasRecommendations: false) unless there are genuinely urgent, portfolio-threatening situations that require immediate divestment. If recommending a sale, provide extremely detailed evidence of the immediate threat, specific price targets, and clear reasoning for why action must be taken within days, not weeks or months.`
 
         const combinedInput = `${system}\n\nHere is the user's full portfolio JSON. Please analyze comprehensively and return the schema specified.\n\n${JSON.stringify(portfolio)}`
 

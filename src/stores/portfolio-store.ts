@@ -24,8 +24,16 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
         set({ isLoading: true, error: null })
 
         try {
-            // Get current session token
-            const { data: { session } } = await supabase.auth.getSession()
+            // Get current session token with error handling
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+            if (sessionError) {
+                console.warn('⚠️ Session error in portfolio refresh:', sessionError.message)
+                if (sessionError.message.includes('Refresh Token') || sessionError.message.includes('refresh_token_not_found')) {
+                    throw new Error('Session expired. Please refresh the page.')
+                }
+                throw new Error('Authentication error')
+            }
 
             if (!session) {
                 throw new Error('Not authenticated')
@@ -204,7 +212,15 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
         set({ isLoading: true, error: null })
 
         try {
-            const { data: { session } } = await supabase.auth.getSession()
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+            if (sessionError) {
+                console.warn('⚠️ Session error:', sessionError.message)
+                if (sessionError.message.includes('Refresh Token') || sessionError.message.includes('refresh_token_not_found')) {
+                    throw new Error('Session expired. Please refresh the page.')
+                }
+                throw new Error('Authentication error')
+            }
 
             if (!session) {
                 throw new Error('Not authenticated')
@@ -299,7 +315,15 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
         set({ isLoading: true, error: null })
 
         try {
-            const { data: { session } } = await supabase.auth.getSession()
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+            if (sessionError) {
+                console.warn('⚠️ Session error:', sessionError.message)
+                if (sessionError.message.includes('Refresh Token') || sessionError.message.includes('refresh_token_not_found')) {
+                    throw new Error('Session expired. Please refresh the page.')
+                }
+                throw new Error('Authentication error')
+            }
 
             if (!session) {
                 throw new Error('Not authenticated')
@@ -325,7 +349,15 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
         set({ isLoading: true, error: null })
 
         try {
-            const { data: { session } } = await supabase.auth.getSession()
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+            if (sessionError) {
+                console.warn('⚠️ Session error:', sessionError.message)
+                if (sessionError.message.includes('Refresh Token') || sessionError.message.includes('refresh_token_not_found')) {
+                    throw new Error('Session expired. Please refresh the page.')
+                }
+                throw new Error('Authentication error')
+            }
 
             if (!session) {
                 throw new Error('Not authenticated')

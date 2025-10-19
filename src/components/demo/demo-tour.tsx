@@ -14,7 +14,13 @@ export default function DemoTour({ children }: Props) {
     useEffect(() => {
         ; (async () => {
             try {
-                const { data: { session } } = await supabase.auth.getSession()
+                const { data: { session }, error } = await supabase.auth.getSession()
+
+                if (error) {
+                    console.warn('⚠️ Demo tour session check error:', error.message)
+                    return
+                }
+
                 const email = session?.user?.email?.toLowerCase()
                 const seen = sessionStorage.getItem('demo_tour_seen')
                 const savedStep = Number(sessionStorage.getItem('demo_tour_step') || '0')
@@ -22,7 +28,9 @@ export default function DemoTour({ children }: Props) {
                     setStep(Number.isNaN(savedStep) ? 0 : savedStep)
                     setShow(true)
                 }
-            } catch { }
+            } catch (error) {
+                console.warn('⚠️ Demo tour error:', error)
+            }
         })()
     }, [])
 
