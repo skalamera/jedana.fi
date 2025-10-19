@@ -1,5 +1,6 @@
-import { TrendingUp, TrendingDown, DollarSign, Sparkles } from 'lucide-react'
+import { TrendingUp, TrendingDown, DollarSign, Sparkles, BarChart3 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import type { Portfolio } from '@/types'
 
 interface PortfolioSummaryProps {
@@ -9,6 +10,34 @@ interface PortfolioSummaryProps {
 
 export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps) {
     const router = useRouter()
+    const [spyPerformance, setSpyPerformance] = useState<number | null>(null)
+    
+    // Fetch S&P 500 (SPY) daily performance
+    useEffect(() => {
+        async function fetchSPYPerformance() {
+            try {
+                const response = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/SPY?interval=1d&range=1d')
+                const data = await response.json()
+                const quote = data?.chart?.result?.[0]?.indicators?.quote?.[0]
+                const meta = data?.chart?.result?.[0]?.meta
+                
+                if (quote && meta && quote.close && quote.close.length > 0) {
+                    const currentPrice = quote.close[quote.close.length - 1]
+                    const previousClose = meta.chartPreviousClose
+                    
+                    if (currentPrice && previousClose) {
+                        const percentChange = ((currentPrice - previousClose) / previousClose) * 100
+                        setSpyPerformance(percentChange)
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch S&P 500 performance:', error)
+            }
+        }
+        
+        fetchSPYPerformance()
+    }, [])
+    
     if (isLoading || !portfolio) {
         return (
             <div className="bg-white shadow rounded-lg">
@@ -70,8 +99,8 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                     </div>
                 </div>
 
-                {/* Mobile: Stack vertically, Desktop: 4 columns when total P&L available */}
-                <div className={`space-y-3 md:space-y-0 md:grid md:gap-4 ${hasUnrealized ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
+                {/* Mobile: Stack vertically, Desktop: grid layout */}
+                <div className={`space-y-3 md:space-y-0 md:grid md:gap-4 ${hasUnrealized && spyPerformance !== null ? 'md:grid-cols-5' : hasUnrealized ? 'md:grid-cols-4' : spyPerformance !== null ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
                     {/* Total Value */}
                     <div className="bg-white dark:bg-gray-600 rounded-xl p-4 border border-gray-200 dark:border-gray-500 shadow-sm">
                         <div className="flex items-center">
@@ -168,6 +197,49 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                                     <dd className={`text-sm md:text-base font-medium ${isPositiveUnrealized ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
                                         {formatPercentage(totalUnrealizedPnLPercentage)}
                                     </dd>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* S&P 500 Comparison */}
+                    {spyPerformance !== null && (
+                        <div className="bg-white dark:bg-gray-600 rounded-xl p-4 border border-gray-200 dark:border-gray-500 shadow-sm">
+                            <div className="flex items-center">
+                                <div className="flex-shrink-0">
+                                    <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
+                                        <BarChart3 className="h-5 w-5 text-white" />
+                                    </div>
+                                </div>
+                                <div className="ml-4 flex-1">
+                                    <dt className="text-sm md:text-base font-medium text-gray-700 dark:text-gray-300">
+                                        vs S&P 500
+                                    </dt>
+                                    {portfolio.totalValue > 0 ? (
+                                        <>
+                                            <dd className={`text-base md:text-lg font-bold ${
+                                                portfolio.totalDailyPnLPercentage > spyPerformance 
+                                                    ? 'text-green-900 dark:text-green-100' 
+                                                    : portfolio.totalDailyPnLPercentage < spyPerformance
+                                                    ? 'text-red-900 dark:text-red-100'
+                                                    : 'text-gray-900 dark:text-white'
+                                            }`}>
+                                                {portfolio.totalDailyPnLPercentage > spyPerformance ? '🎯 Beating' : portfolio.totalDailyPnLPercentage < spyPerformance ? '📉 Trailing' : '➡️ Matching'}
+                                            </dd>
+                                            <dd className="text-sm md:text-base font-medium text-gray-600 dark:text-gray-400">
+                                                SPY: {formatPercentage(spyPerformance)}
+                                            </dd>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <dd className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
+                                                S&P 500
+                                            </dd>
+                                            <dd className={`text-sm md:text-base font-medium ${spyPerformance >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
+                                                {formatPercentage(spyPerformance)}
+                                            </dd>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>
