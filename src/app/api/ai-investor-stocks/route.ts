@@ -24,19 +24,9 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const prompt = `You are ${investor}, the legendary investor who pioneered ${investmentStyle}.
+        const prompt = `As ${investor}, recommend 10 stocks for the next 5 years using ${investmentStyle} principles.
 
-Based on your ${investmentStyle} philosophy, recommend the top 10 stocks that will beat the market over the next 5 years.
-
-Focus on current market conditions and provide analysis for each stock including:
-- Company overview and why it fits your approach
-- Key strengths and competitive advantages
-- Key risks and challenges
-- 5-year price forecast with confidence level
-- Current financial metrics
-- Why this stock exemplifies your investment philosophy
-
-Return ONLY valid JSON in this format:
+Be concise. Return ONLY valid JSON in this format:
 {
     "investor": "${investor}",
     "investmentStyle": "${investmentStyle}",
@@ -81,8 +71,8 @@ Return ONLY valid JSON in this format:
                     { role: 'system', content: prompt },
                 ],
                 response_format: { type: 'json_object' },
-                max_tokens: 4000,
-                temperature: 0.7,
+                max_tokens: 16000,
+                temperature: 0.5,
             })
         } catch (openaiError) {
             console.error('OpenAI API Error:', openaiError)
