@@ -194,8 +194,18 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
                         : 0
                 }
             } else if (!hasApiData) {
-                // No manual assets and no API data - this is when we should show an error
-                throw new Error('No API keys found. Please configure your Kraken API keys in settings.')
+                // No manual assets and no API data - create an empty portfolio
+                console.log('No manual assets and no API data - creating empty portfolio')
+                portfolioData = {
+                    assets: [],
+                    totalValue: 0,
+                    totalDailyPnL: 0,
+                    totalDailyPnLPercentage: 0,
+                    totalCostBasis: 0,
+                    totalUnrealizedPnL: 0,
+                    totalUnrealizedPnLPercentage: 0,
+                    lastUpdated: new Date().toISOString()
+                }
             }
 
             set({ portfolio: portfolioData as Portfolio, isLoading: false })
