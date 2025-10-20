@@ -128,27 +128,31 @@ export function PortfolioDashboard() {
     }
 
     const renderCollapsedMetrics = (metrics: ReturnType<typeof computeGroupMetrics>, accentColor: string) => {
+        const isPnLPositive = metrics.dailyPnL >= 0
         return (
-            <div className="flex justify-end items-start space-x-6">
+            <div className="flex justify-end items-center gap-3">
                 {/* Total Value Section */}
-                <div className="text-right">
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                <div className="bg-white/50 dark:bg-gray-600/50 backdrop-blur-sm rounded-lg px-4 py-2.5 border border-gray-200 dark:border-gray-600 shadow-sm">
+                    <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-0.5 uppercase tracking-wide">
                         {formatShare(metrics.shareOfTotal)} of total
                     </div>
-                    <div className="text-lg md:text-xl font-bold" style={{ color: accentColor }}>
+                    <div className="text-xl md:text-2xl font-bold" style={{ color: accentColor }}>
                         {formatCurrency(metrics.value)}
                     </div>
                 </div>
 
                 {/* Daily P&L Section */}
-                <div className="text-right min-w-[100px]">
-                    <div className={`text-xs text-gray-500 dark:text-gray-400 mb-1`}>
+                <div className={`rounded-lg px-4 py-2.5 border-2 shadow-sm min-w-[140px] ${isPnLPositive
+                        ? 'bg-green-50/80 dark:bg-green-900/30 border-green-300 dark:border-green-600'
+                        : 'bg-red-50/80 dark:bg-red-900/30 border-red-300 dark:border-red-600'
+                    }`}>
+                    <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-0.5 uppercase tracking-wide">
                         Daily P&L
                     </div>
-                    <div className={`text-lg md:text-xl font-semibold ${getPnLClass(metrics.dailyPnL)}`}>
+                    <div className={`text-xl md:text-2xl font-bold ${getPnLClass(metrics.dailyPnL)}`}>
                         {formatCurrency(metrics.dailyPnL)}
                     </div>
-                    <div className={`text-xs ${getPnLClass(metrics.dailyPnL)}`}>
+                    <div className={`text-xs font-semibold mt-0.5 ${getPnLClass(metrics.dailyPnL)}`}>
                         {formatShare(metrics.dailyPnLPercentage)}
                     </div>
                 </div>
@@ -165,26 +169,27 @@ export function PortfolioDashboard() {
             <div className="space-y-4 md:space-y-6">
                 {/* Cryptocurrencies Section */}
                 {cryptoAssets.length > 0 && (
-                    <div className="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-xl border-2 border-teal-300 dark:border-teal-600" style={{ borderColor: 'var(--crypto-primary)' }}>
-                        <div className="p-4 md:p-6">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
+                    <div className="bg-gradient-to-br from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 shadow-lg rounded-2xl border-2 overflow-hidden transition-all hover:shadow-xl" style={{ borderColor: 'var(--crypto-primary)' }}>
+                        <div className="p-5 md:p-7">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                                 <div className="flex items-center space-x-3">
                                     <button
                                         onClick={() => toggleGroup('crypto')}
-                                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                                        className="p-2 hover:bg-gray-200/60 dark:hover:bg-gray-600/60 rounded-lg transition-all duration-200"
+                                        aria-label={expandedGroups.crypto ? 'Collapse cryptocurrencies' : 'Expand cryptocurrencies'}
                                     >
                                         {expandedGroups.crypto ? (
-                                            <ChevronDown className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                            <ChevronDown className="w-5 h-5 text-gray-700 dark:text-gray-300" />
                                         ) : (
-                                            <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                            <ChevronRight className="w-5 h-5 text-gray-700 dark:text-gray-300" />
                                         )}
                                     </button>
-                                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: 'var(--crypto-primary)' }}></div>
-                                    <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
-                                        Cryptocurrencies ({cryptoAssets.length})
+                                    <div className="w-3 h-8 rounded-full shadow-sm" style={{ backgroundColor: 'var(--crypto-primary)' }}></div>
+                                    <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+                                        Cryptocurrencies <span className="text-gray-500 dark:text-gray-400 font-normal">({cryptoAssets.length})</span>
                                     </h3>
                                 </div>
-                                <div className="flex items-end justify-between sm:justify-end space-x-4 w-full sm:w-auto">
+                                <div className="flex items-end justify-between sm:justify-end w-full sm:w-auto">
                                     {renderCollapsedMetrics(cryptoMetrics, 'var(--crypto-primary)')}
                                 </div>
                             </div>
@@ -197,26 +202,27 @@ export function PortfolioDashboard() {
 
                 {/* ETFs Section */}
                 {etfAssets.length > 0 && (
-                    <div className="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-xl border-2 border-indigo-300 dark:border-indigo-600" style={{ borderColor: 'var(--etf-primary, #6366f1)' }}>
-                        <div className="p-4 md:p-6">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
+                    <div className="bg-gradient-to-br from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 shadow-lg rounded-2xl border-2 overflow-hidden transition-all hover:shadow-xl" style={{ borderColor: 'var(--etf-primary, #6366f1)' }}>
+                        <div className="p-5 md:p-7">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                                 <div className="flex items-center space-x-3">
                                     <button
                                         onClick={() => toggleGroup('etf')}
-                                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                                        className="p-2 hover:bg-gray-200/60 dark:hover:bg-gray-600/60 rounded-lg transition-all duration-200"
+                                        aria-label={expandedGroups.etf ? 'Collapse ETFs' : 'Expand ETFs'}
                                     >
                                         {expandedGroups.etf ? (
-                                            <ChevronDown className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                            <ChevronDown className="w-5 h-5 text-gray-700 dark:text-gray-300" />
                                         ) : (
-                                            <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                            <ChevronRight className="w-5 h-5 text-gray-700 dark:text-gray-300" />
                                         )}
                                     </button>
-                                    <div className="w-4 h-4 rounded-full bg-indigo-500"></div>
-                                    <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
-                                        ETFs ({etfAssets.length})
+                                    <div className="w-3 h-8 rounded-full shadow-sm bg-indigo-500"></div>
+                                    <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+                                        ETFs <span className="text-gray-500 dark:text-gray-400 font-normal">({etfAssets.length})</span>
                                     </h3>
                                 </div>
-                                <div className="flex items-end justify-between sm:justify-end space-x-4 w-full sm:w-auto">
+                                <div className="flex items-end justify-between sm:justify-end w-full sm:w-auto">
                                     {renderCollapsedMetrics(etfMetrics, 'var(--etf-primary, #6366f1)')}
                                 </div>
                             </div>
@@ -229,26 +235,27 @@ export function PortfolioDashboard() {
 
                 {/* Stocks Section */}
                 {stockAssets.length > 0 && (
-                    <div className="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-xl border-2 border-purple-300 dark:border-purple-600" style={{ borderColor: 'var(--stock-primary)' }}>
-                        <div className="p-4 md:p-6">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
+                    <div className="bg-gradient-to-br from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 shadow-lg rounded-2xl border-2 overflow-hidden transition-all hover:shadow-xl" style={{ borderColor: 'var(--stock-primary)' }}>
+                        <div className="p-5 md:p-7">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                                 <div className="flex items-center space-x-3">
                                     <button
                                         onClick={() => toggleGroup('stock')}
-                                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                                        className="p-2 hover:bg-gray-200/60 dark:hover:bg-gray-600/60 rounded-lg transition-all duration-200"
+                                        aria-label={expandedGroups.stock ? 'Collapse stocks' : 'Expand stocks'}
                                     >
                                         {expandedGroups.stock ? (
-                                            <ChevronDown className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                            <ChevronDown className="w-5 h-5 text-gray-700 dark:text-gray-300" />
                                         ) : (
-                                            <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                            <ChevronRight className="w-5 h-5 text-gray-700 dark:text-gray-300" />
                                         )}
                                     </button>
-                                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: 'var(--stock-primary)' }}></div>
-                                    <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
-                                        Stocks ({stockAssets.length})
+                                    <div className="w-3 h-8 rounded-full shadow-sm" style={{ backgroundColor: 'var(--stock-primary)' }}></div>
+                                    <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+                                        Stocks <span className="text-gray-500 dark:text-gray-400 font-normal">({stockAssets.length})</span>
                                     </h3>
                                 </div>
-                                <div className="flex items-end justify-between sm:justify-end space-x-4 w-full sm:w-auto">
+                                <div className="flex items-end justify-between sm:justify-end w-full sm:w-auto">
                                     {renderCollapsedMetrics(stockMetrics, 'var(--stock-primary)')}
                                 </div>
                             </div>
@@ -261,26 +268,27 @@ export function PortfolioDashboard() {
 
                 {/* Manual Assets Section */}
                 {manualAssets.length > 0 && (
-                    <div className="bg-gray-50 dark:bg-gray-700 shadow-sm rounded-xl border-2 border-blue-300 dark:border-blue-600" style={{ borderColor: 'var(--manual-primary)' }}>
-                        <div className="p-4 md:p-6">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
+                    <div className="bg-gradient-to-br from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 shadow-lg rounded-2xl border-2 overflow-hidden transition-all hover:shadow-xl" style={{ borderColor: 'var(--manual-primary)' }}>
+                        <div className="p-5 md:p-7">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                                 <div className="flex items-center space-x-3">
                                     <button
                                         onClick={() => toggleGroup('manual')}
-                                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                                        className="p-2 hover:bg-gray-200/60 dark:hover:bg-gray-600/60 rounded-lg transition-all duration-200"
+                                        aria-label={expandedGroups.manual ? 'Collapse manual assets' : 'Expand manual assets'}
                                     >
                                         {expandedGroups.manual ? (
-                                            <ChevronDown className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                            <ChevronDown className="w-5 h-5 text-gray-700 dark:text-gray-300" />
                                         ) : (
-                                            <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                                            <ChevronRight className="w-5 h-5 text-gray-700 dark:text-gray-300" />
                                         )}
                                     </button>
-                                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: 'var(--manual-primary)' }}></div>
-                                    <h3 className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
-                                        Manual Assets ({manualAssets.length})
+                                    <div className="w-3 h-8 rounded-full shadow-sm" style={{ backgroundColor: 'var(--manual-primary)' }}></div>
+                                    <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+                                        Manual Assets <span className="text-gray-500 dark:text-gray-400 font-normal">({manualAssets.length})</span>
                                     </h3>
                                 </div>
-                                <div className="flex items-end justify-between sm:justify-end space-x-4 w-full sm:w-auto">
+                                <div className="flex items-end justify-between sm:justify-end w-full sm:w-auto">
                                     {renderCollapsedMetrics(manualMetrics, 'var(--manual-primary)')}
                                 </div>
                             </div>

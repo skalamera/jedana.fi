@@ -489,10 +489,10 @@ export default function AddAssetPage() {
                                                         <TableCell className="text-sm">{asset.name}</TableCell>
                                                         <TableCell>
                                                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${asset.asset_type === 'crypto'
-                                                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-                                                                    : asset.asset_type === 'equity'
-                                                                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
-                                                                        : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+                                                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                                                                : asset.asset_type === 'equity'
+                                                                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                                                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
                                                                 }`}>
                                                                 {asset.asset_type}
                                                             </span>
@@ -558,7 +558,7 @@ export default function AddAssetPage() {
                                     </label>
                                     <div className="relative">
                                         <div className="relative">
-                                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-300" />
+                                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
                                             <Input
                                                 type="text"
                                                 placeholder="Search for Bitcoin, Apple, SPY, etc..."
@@ -568,7 +568,7 @@ export default function AddAssetPage() {
                                                     setShowSuggestions(true)
                                                 }}
                                                 onFocus={() => setShowSuggestions(true)}
-                                                className="pl-10 pr-4 h-12 text-base text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400"
+                                                className="pl-10 pr-4 h-12 text-base bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 border-gray-300 dark:border-gray-600"
                                             />
                                         </div>
 

@@ -153,12 +153,11 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                     : 0
 
                 return (
-                    <div key={asset.symbol} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-200" style={{
-                        border: `2px solid ${colors.primary}20`,
-                        '--hover-border': `${colors.primary}40`
+                    <div key={asset.symbol} className="bg-gradient-to-br from-white to-gray-50/30 dark:from-gray-800 dark:to-gray-900/50 rounded-2xl shadow-md hover:shadow-lg transition-all duration-200 border-2 overflow-hidden" style={{
+                        borderColor: colors.primary
                     } as React.CSSProperties}>
                         {/* Asset Header */}
-                        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                        <div className="px-5 py-4 border-b-2 border-gray-100 dark:border-gray-700/50 bg-white/50 dark:bg-gray-800/50">
                             <div className="flex items-center justify-between">
                                 <div className="flex flex-col space-y-1">
                                     <h4 className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
@@ -205,9 +204,9 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                         </span>
                                     </div>
                                 </div>
-                                <div className="text-right">
+                                <div className="text-right flex flex-col items-end">
                                     {/* Top-right actions */}
-                                    <div className="flex justify-end -mt-1 mb-1">
+                                    <div className="flex justify-end mb-2">
                                         {asset.source === 'manual' && asset.manualId && (
                                             confirmDeleteId === asset.manualId ? (
                                                 <div className="flex items-center gap-2">
@@ -216,13 +215,13 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                                             await deleteManualAsset(asset.manualId!)
                                                             setConfirmDeleteId(null)
                                                         }}
-                                                        className="inline-flex items-center px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                                                        className="inline-flex items-center px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 shadow-sm"
                                                     >
                                                         Confirm
                                                     </button>
                                                     <button
                                                         onClick={() => setConfirmDeleteId(null)}
-                                                        className="inline-flex items-center px-2 py-1 text-xs border rounded text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                                                        className="inline-flex items-center px-3 py-1.5 text-xs font-medium border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                                                     >
                                                         Cancel
                                                     </button>
@@ -230,7 +229,7 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                             ) : (
                                                 <button
                                                     onClick={() => setConfirmDeleteId(asset.manualId!)}
-                                                    className="inline-flex items-center p-1.5 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                                                    className="inline-flex items-center p-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                                     title="Delete manual asset"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -239,16 +238,18 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                         )}
                                     </div>
 
-                                    <div className="text-sm font-mono font-semibold text-gray-900 dark:text-white">
+                                    <div className="text-base font-mono font-bold text-gray-900 dark:text-white mb-1">
                                         {asset.balance.toFixed(6)}
                                     </div>
-                                    <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-1 mt-2">
+                                    <div className="inline-flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700/50 px-2.5 py-1 rounded-full">
                                         <img
                                             src="/allocation_logo.svg"
                                             alt="Allocation"
-                                            className="w-4 h-4"
+                                            className="w-3.5 h-3.5"
                                         />
-                                        <span>{getAllocationPercentage(asset).toFixed(2)}%</span>
+                                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                            {getAllocationPercentage(asset).toFixed(2)}%
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -260,28 +261,34 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                         </div>
 
                         {/* All Asset Data in One Section */}
-                        <div className="p-4">
+                        <div className="p-5">
                             {/* Primary Metrics Grid */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4" style={{ backgroundColor: `${colors.secondary}80` }}>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-700/50">
                                 {/* Price */}
                                 <div className="text-center">
-                                    <div className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: colors.accent }}>Price</div>
-                                    <div className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
+                                    <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
+                                        Price
+                                    </div>
+                                    <div className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
                                         {formatCurrency(asset.currentPrice)}
                                     </div>
                                 </div>
 
                                 {/* Value */}
                                 <div className="text-center">
-                                    <div className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: colors.accent }}>Value</div>
-                                    <div className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
+                                    <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
+                                        Value
+                                    </div>
+                                    <div className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
                                         {formatCurrency(asset.value)}
                                     </div>
                                 </div>
 
                                 {/* Cost Basis */}
                                 <div className="text-center">
-                                    <div className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: colors.accent }}>Cost Basis</div>
+                                    <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
+                                        Cost Basis
+                                    </div>
                                     {editingCostBasis === asset.symbol ? (
                                         <div className="space-y-2">
                                             <input
@@ -290,35 +297,35 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                                 min="0"
                                                 value={editCostBasisValue}
                                                 onChange={(e) => setEditCostBasisValue(e.target.value)}
-                                                className="w-full max-w-20 px-2 py-1 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                className="w-full max-w-24 px-2 py-1 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                 autoFocus
                                             />
-                                            <div className="flex space-x-1">
+                                            <div className="flex justify-center space-x-1">
                                                 <button
                                                     onClick={() => saveCostBasis(asset)}
-                                                    className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                                                    className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm"
                                                 >
                                                     Save
                                                 </button>
                                                 <button
                                                     onClick={cancelEditCostBasis}
-                                                    className="px-2 py-1 text-xs bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-400 dark:hover:bg-gray-500"
+                                                    className="px-3 py-1 text-xs font-medium bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500"
                                                 >
                                                     Cancel
                                                 </button>
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex items-center justify-center space-x-1">
-                                            <div className="text-base md:text-lg font-bold text-gray-900 dark:text-white">
+                                        <div className="flex items-center justify-center space-x-1.5">
+                                            <div className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
                                                 {formatCurrency(asset.costBasis)}
                                             </div>
                                             <button
                                                 onClick={() => startEditCostBasis(asset)}
-                                                className="p-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+                                                className="p-1 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 transition-colors"
                                                 title="Edit cost basis"
                                             >
-                                                <Edit className="w-3 h-3" />
+                                                <Edit className="w-3.5 h-3.5" />
                                             </button>
                                         </div>
                                     )}
@@ -326,8 +333,10 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
 
                                 {/* Daily P&L */}
                                 <div className="text-center">
-                                    <div className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: colors.accent }}>Daily P&L</div>
-                                    <div className={`text-base md:text-lg font-bold flex items-center justify-center ${isPositivePnL ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                    <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
+                                        Daily P&L
+                                    </div>
+                                    <div className={`text-lg md:text-xl font-bold flex items-center justify-center ${isPositivePnL ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                         {asset.dailyPnL === 0 && asset.symbol.endsWith('.EQ') ? (
                                             <span className="text-gray-400 dark:text-gray-500">—</span>
                                         ) : isPositivePnL ? (
@@ -349,11 +358,13 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
 
                             {/* Unrealized P&L Section - When Available */}
                             {hasUnrealizedPnL && (
-                                <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
-                                    <div className="grid grid-cols-2 gap-4" style={{ backgroundColor: `${colors.secondary}60` }}>
+                                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                                    <div className="grid grid-cols-2 gap-4 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-700/50">
                                         <div className="text-center">
-                                            <div className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: colors.accent }}>UP&L</div>
-                                            <div className={`text-base md:text-lg font-bold flex items-center justify-center ${asset.unrealizedPnL && asset.unrealizedPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                            <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
+                                                UP&L
+                                            </div>
+                                            <div className={`text-lg md:text-xl font-bold flex items-center justify-center ${asset.unrealizedPnL && asset.unrealizedPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                                 {asset.unrealizedPnL && asset.unrealizedPnL >= 0 ? (
                                                     <TrendingUp className="w-4 h-4 mr-1" />
                                                 ) : (
@@ -363,8 +374,10 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                             </div>
                                         </div>
                                         <div className="text-center">
-                                            <div className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: colors.accent }}>Total %</div>
-                                            <div className={`text-base md:text-lg font-bold ${asset.unrealizedPnL && asset.unrealizedPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                            <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
+                                                Total %
+                                            </div>
+                                            <div className={`text-lg md:text-xl font-bold ${asset.unrealizedPnL && asset.unrealizedPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                                 {formatPercentage(asset.unrealizedPnLPercentage)}
                                             </div>
                                         </div>

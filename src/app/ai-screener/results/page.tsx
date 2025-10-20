@@ -139,11 +139,11 @@ export default function AIScreenerResultsPage() {
                     </TabsList>
 
                     <TabsContent value="assets" className="space-y-6">
-                        {/* Swipe hint */}
-                        <div className="flex items-center justify-center text-xs text-gray-500 dark:text-gray-400">
-                            <ChevronLeft className="w-3 h-3 mr-1" /> Swipe to see more <ChevronRight className="w-3 h-3 ml-1" />
+                        {/* Navigation hint */}
+                        <div className="md:hidden flex items-center justify-center text-xs text-gray-500 dark:text-gray-400 mb-4">
+                            <ChevronLeft className="w-3 h-3 mr-1" /> Swipe to navigate <ChevronRight className="w-3 h-3 ml-1" />
                         </div>
-                        {/* Horizontal Carousel */}
+                        {/* Asset Carousel */}
                         <Carousel assets={result.assets} />
                     </TabsContent>
                 </Tabs>
@@ -437,50 +437,162 @@ async function saveAnalysis(asset: AssetAnalysis) {
 
 
 function Carousel({ assets }: { assets: AssetAnalysis[] }) {
-    const trackRef = useRef<HTMLDivElement | null>(null)
-    const containerRef = useRef<HTMLDivElement | null>(null)
+    const [currentIndex, setCurrentIndex] = useState(0)
 
-    function scrollByCards(direction: 1 | -1) {
-        const track = trackRef.current
-        const container = containerRef.current
-        if (!track || !container) return
-        const firstCard = track.querySelector('[data-card]') as HTMLElement | null
-        const cardWidth = firstCard ? firstCard.clientWidth : 560
-        const gap = 24 // md:gap-6
-        container.scrollBy({ left: direction * (cardWidth + gap), behavior: 'smooth' })
+    const goToPrevious = () => {
+        setCurrentIndex((prev) => (prev > 0 ? prev - 1 : assets.length - 1))
+    }
+
+    const goToNext = () => {
+        setCurrentIndex((prev) => (prev < assets.length - 1 ? prev + 1 : 0))
+    }
+
+    const goToIndex = (index: number) => {
+        setCurrentIndex(index)
+    }
+
+    // Keyboard navigation
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault()
+                goToPrevious()
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault()
+                goToNext()
+            }
+        }
+
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [assets.length])
+
+    if (assets.length === 0) {
+        return <div className="text-center text-gray-500">No assets to display</div>
     }
 
     return (
         <div className="relative">
-            {/* Desktop fixed controls - always visible */}
-            <button
-                type="button"
-                onClick={() => scrollByCards(-1)}
-                className="hidden md:flex fixed left-2 top-1/2 -translate-y-1/2 z-40 h-10 w-10 items-center justify-center rounded-full bg-white/90 dark:bg-gray-800/90 border border-gray-200 dark:border-gray-700 shadow hover:bg-white dark:hover:bg-gray-800"
-                aria-label="Scroll left"
-            >
-                <ChevronLeft className="w-6 h-6 text-gray-700 dark:text-gray-200" />
-            </button>
-            <button
-                type="button"
-                onClick={() => scrollByCards(1)}
-                className="hidden md:flex fixed right-2 top-1/2 -translate-y-1/2 z-40 h-10 w-10 items-center justify-center rounded-full bg-white/90 dark:bg-gray-800/90 border border-gray-200 dark:border-gray-700 shadow hover:bg-white dark:hover:bg-gray-800"
-                aria-label="Scroll right"
-            >
-                <ChevronRight className="w-6 h-6 text-gray-700 dark:text-gray-200" />
-            </button>
+            {/* Navigation Arrows - Desktop */}
+            {assets.length > 1 && (
+                <>
+                    <button
+                        type="button"
+                        onClick={goToPrevious}
+                        className="hidden md:flex fixed left-4 lg:left-8 top-1/2 -translate-y-1/2 z-50 h-14 w-14 items-center justify-center rounded-full bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 shadow-xl hover:shadow-2xl hover:scale-110 transition-all duration-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-400 dark:hover:border-blue-500"
+                        aria-label="Previous asset"
+                    >
+                        <ChevronLeft className="w-7 h-7 text-gray-700 dark:text-gray-200" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={goToNext}
+                        className="hidden md:flex fixed right-4 lg:right-8 top-1/2 -translate-y-1/2 z-50 h-14 w-14 items-center justify-center rounded-full bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 shadow-xl hover:shadow-2xl hover:scale-110 transition-all duration-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-400 dark:hover:border-blue-500"
+                        aria-label="Next asset"
+                    >
+                        <ChevronRight className="w-7 h-7 text-gray-700 dark:text-gray-200" />
+                    </button>
+                </>
+            )}
 
-            <div ref={containerRef} className="overflow-x-auto pb-3 -mx-4 md:mx-0">
-                <div ref={trackRef} className="flex gap-4 md:gap-6 px-4 md:px-0 snap-x snap-mandatory scroll-smooth">
+            {/* Desktop: Single Card Display */}
+            <div className="hidden md:block">
+                {/* Navigation Indicator - Top */}
+                {assets.length > 1 && (
+                    <div className="flex items-center justify-center gap-3 mb-6">
+                        {/* Current position indicator */}
+                        <span className="text-base font-semibold text-gray-700 dark:text-gray-300">
+                            {currentIndex + 1} / {assets.length}
+                        </span>
+
+                        {/* Dot indicators */}
+                        <div className="flex gap-2">
+                            {assets.map((_, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => goToIndex(index)}
+                                    className={`transition-all duration-200 rounded-full ${index === currentIndex
+                                            ? 'w-8 h-2.5 bg-blue-600 dark:bg-blue-400'
+                                            : 'w-2.5 h-2.5 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'
+                                        }`}
+                                    aria-label={`Go to asset ${index + 1}`}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Navigation buttons */}
+                        <div className="flex items-center gap-2 ml-2">
+                            <button
+                                onClick={goToPrevious}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                                Previous
+                            </button>
+                            <button
+                                onClick={goToNext}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                            >
+                                Next
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                <div className="max-w-4xl mx-auto">
+                    <AssetCard asset={assets[currentIndex]} />
+                </div>
+            </div>
+
+            {/* Mobile: Swipeable Carousel */}
+            <div className="md:hidden overflow-x-auto pb-3 -mx-4">
+                <div className="flex gap-4 px-4 snap-x snap-mandatory scroll-smooth">
                     {assets.map((asset, index) => (
                         <div
                             key={`${asset.symbol}-${index}`}
-                            data-card
-                            className="snap-start shrink-0 w-[88vw] sm:w-[520px] md:w-[560px] lg:w-[600px]"
+                            className="snap-start shrink-0 w-[88vw]"
                         >
                             <AssetCard asset={asset} />
                         </div>
                     ))}
+                </div>
+            </div>
+
+            {/* Navigation Dots */}
+            {assets.length > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-6">
+                    {/* Current position indicator */}
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400 mr-2">
+                        {currentIndex + 1} / {assets.length}
+                    </span>
+
+                    {/* Dot indicators */}
+                    <div className="flex gap-2">
+                        {assets.map((_, index) => (
+                            <button
+                                key={index}
+                                onClick={() => goToIndex(index)}
+                                className={`transition-all duration-200 rounded-full ${index === currentIndex
+                                    ? 'w-8 h-2 bg-blue-600 dark:bg-blue-400'
+                                    : 'w-2 h-2 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'
+                                    }`}
+                                aria-label={`Go to asset ${index + 1}`}
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Keyboard Navigation Hint */}
+            <div className="hidden md:flex items-center justify-center gap-4 mt-4 text-xs text-gray-500 dark:text-gray-400">
+                <div className="flex items-center gap-1">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">←</kbd>
+                    <span>Previous</span>
+                </div>
+                <div className="flex items-center gap-1">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">→</kbd>
+                    <span>Next</span>
                 </div>
             </div>
         </div>

@@ -117,17 +117,22 @@ function createAIPrompt(request: AIScreenerRequest): string {
 
     return `Research and recommend 5 high-quality ${assetTypes} that match these investment criteria: "${userQuery}"
 
-Focus on current 2025 market conditions and provide comprehensive analysis for each recommendation. For each asset, provide detailed information including:
+CRITICAL INSTRUCTIONS:
+- Each stock MUST have UNIQUE and SPECIFIC strengths, risks, and technical analysis
+- DO NOT use generic phrases - be specific to each company's actual business, financials, and market position
+- Include REAL, SPECIFIC details about products, services, competitive advantages, and market dynamics
+- For technical analysis, provide ACTUAL indicator values and price levels where possible
+- Make each recommendation clearly DIFFERENT from the others
 
-1. Company overview and investment rationale
-2. Key strengths and competitive advantages
-3. Key risks and challenges
-4. Technical analysis indicators
-5. Market sentiment analysis
-6. Recent news and developments
-7. Analyst ratings and price targets
-8. Detailed 6-month price forecast with realistic projections
-9. All available financial metrics
+For each asset, research and provide:
+
+1. **Company-Specific Overview:** What makes THIS company unique in its industry
+2. **Unique Strengths:** Specific competitive advantages THIS company has (not generic points)
+3. **Specific Risks:** Real challenges facing THIS particular business
+4. **Actual Technical Indicators:** Current RSI, MA, MACD values and what they mean
+5. **Current Market Sentiment:** Recent news, analyst actions, institutional moves
+6. **Specific Catalysts:** Upcoming events, product launches, earnings that could move the stock
+7. **Real Price Targets:** Actual analyst consensus and reasoning
 
 Return the response in this exact JSON format:
 
@@ -136,21 +141,21 @@ Return the response in this exact JSON format:
         {
             "ticker": "TICKER",
             "name": "Company Name",
-            "description": "Comprehensive company analysis and investment rationale",
+            "description": "SPECIFIC company overview - what they actually do, their market position, unique value proposition",
             "keyStrengths": [
-                "Specific strength 1 with explanation",
-                "Specific strength 2 with explanation",
-                "Specific strength 3 with explanation"
+                "SPECIFIC strength unique to this company (e.g., 'Dominates 85% of GPU market for AI training')",
+                "SPECIFIC competitive advantage (e.g., 'CUDA ecosystem creates high switching costs')",
+                "SPECIFIC financial metric (e.g., 'Operating margins expanded to 62% in Q4 2024')"
             ],
             "keyRisks": [
-                "Specific risk 1 with explanation",
-                "Specific risk 2 with explanation",
-                "Specific risk 3 with explanation"
+                "SPECIFIC risk for this company (e.g., 'AMD gaining share in data center GPUs, won 15% of new contracts')",
+                "SPECIFIC challenge (e.g., 'Customer concentration: 40% revenue from top 5 cloud providers')",
+                "SPECIFIC concern (e.g., 'Export restrictions to China cut $5B annual revenue')"
             ],
             "technicalAnalysis": [
-                "RSI indicator analysis",
-                "Moving averages analysis",
-                "Support/resistance levels"
+                "RSI: [actual value] - [specific interpretation for THIS stock]",
+                "50/200 MA: [actual values and position] - [specific signal]",
+                "Key levels: Support at $[X], Resistance at $[Y] - [why these levels matter]"
             ],
             "finance": {
                 "price": 123.45,
@@ -180,17 +185,17 @@ Return the response in this exact JSON format:
                 "overall": "bullish",
                 "score": 78,
                 "keyFactors": [
-                    "Strong institutional investor interest",
-                    "Positive media coverage",
-                    "Growing analyst price targets"
+                    "SPECIFIC institutional activity (e.g., 'Vanguard increased stake by 12% in Q4')",
+                    "SPECIFIC media narrative (e.g., 'Featured in WSJ as AI infrastructure leader')",
+                    "SPECIFIC analyst action (e.g., 'Morgan Stanley raised PT from $140 to $180')"
                 ],
-                "newsSummary": "Recent product launches and strategic partnerships have boosted investor confidence"
+                "newsSummary": "SPECIFIC recent developments unique to this company"
             },
             "recentNews": [
                 {
-                    "title": "Company announces major partnership deal",
+                    "title": "SPECIFIC, real-sounding headline about this company",
                     "date": "2025-01-15",
-                    "summary": "Strategic alliance expected to drive 20% revenue growth",
+                    "summary": "SPECIFIC development with actual details and numbers",
                     "impact": "positive"
                 }
             ],
@@ -202,7 +207,9 @@ Return the response in this exact JSON format:
             }
         }
     ]
-}`
+}
+
+REMEMBER: Make each stock's analysis COMPLETELY DIFFERENT. A reader should immediately see why NVIDIA is different from Microsoft, why Apple has different strengths than Amazon, etc. Be SPECIFIC, not generic.`
 }
 
 // Extract plain text content from OpenAI Responses API result
@@ -264,7 +271,18 @@ function inferSignal(text: string): 'buy' | 'sell' | 'hold' | 'neutral' {
 
 // Try Responses API with web_search, then without tools, then Chat Completions JSON-only
 async function createOpenAIResponseWithFallback(openai: any, prompt: string): Promise<any> {
-    const system = 'You are an expert financial analyst. Provide investment recommendations in valid JSON format only. Perform extensive research and provide in-depth, detailed reports on each of the assets you recommend in your response. Return ONLY valid JSON. Base all of your research off the fact that it is currently year 2025, and ensure that all data retrieved from web searches is current as of 2025, avoiding data specifically from previous years such as 2023.'
+    const system = `You are an expert financial analyst with deep knowledge of individual companies. 
+
+CRITICAL REQUIREMENTS:
+- Each stock recommendation MUST be UNIQUE with company-specific details
+- NO GENERIC analysis - every strength, risk, and technical point must be specific to THAT company
+- Include REAL numbers, percentages, and specific business details
+- Technical analysis should reference ACTUAL current indicator values
+- Strengths should cite specific products, market share, partnerships, or financial metrics
+- Risks should identify actual competitive threats, regulatory issues, or business challenges
+- Make it OBVIOUS that you researched each company individually
+
+Return ONLY valid JSON. Year is 2025 - use current data.`
 
     // Attempt 1: Responses + web_search
     for (let attempt = 0; attempt < 3; attempt++) {

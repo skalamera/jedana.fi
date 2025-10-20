@@ -553,6 +553,49 @@ export default function AIScreenerPage() {
             console.log('API result received:', result)
             console.log('Has recommendations:', result?.recommendations?.length || 0)
 
+            // Fetch real-time prices for all recommended stocks
+            if (result?.recommendations && result.recommendations.length > 0) {
+                console.log('Fetching real-time prices for recommended stocks...')
+                try {
+                    const tickers = result.recommendations.map((stock: InvestorStock) => ({
+                        symbol: stock.ticker,
+                        assetType: 'equity' as const
+                    }))
+
+                    const priceResponse = await fetch('/api/fetch-prices', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ symbols: tickers }),
+                    })
+
+                    if (priceResponse.ok) {
+                        const priceData = await priceResponse.json()
+                        console.log('Real-time prices fetched:', priceData)
+
+                        // Update stock prices with real data
+                        result.recommendations = result.recommendations.map((stock: InvestorStock) => {
+                            const realPrice = priceData.prices?.[stock.ticker]
+                            if (realPrice?.currentPrice) {
+                                console.log(`Updated ${stock.ticker}: AI price $${stock.finance.price} → Real price $${realPrice.currentPrice}`)
+                                return {
+                                    ...stock,
+                                    finance: {
+                                        ...stock.finance,
+                                        price: realPrice.currentPrice
+                                    }
+                                }
+                            }
+                            return stock
+                        })
+                    }
+                } catch (priceError) {
+                    console.warn('Failed to fetch real-time prices:', priceError)
+                    // Continue with AI-generated prices if fetch fails
+                }
+            }
+
             // Clear timer first
             if (progressTimer) {
                 clearInterval(progressTimer)

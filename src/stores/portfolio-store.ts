@@ -96,9 +96,12 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
                     }
                 }
 
-                // Fetch real prices for supported tickers
-                const manualSymbols = manualAssets.map(asset => asset.symbol)
-                const manualPrices = await fetchManualAssetPrices(manualSymbols)
+                // Fetch real prices for all manual assets with their asset types
+                const manualSymbolsWithTypes = manualAssets.map(asset => ({
+                    symbol: asset.symbol,
+                    assetType: asset.asset_type
+                }))
+                const manualPrices = await fetchManualAssetPrices(manualSymbolsWithTypes)
 
                 const manualPortfolioAssets = manualAssets.map(asset => {
                     const realPriceData = manualPrices[asset.symbol]
@@ -130,6 +133,12 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
                     const cleanSymbol = asset.symbol.endsWith('.EQ') ? asset.symbol.replace('.EQ', '') : asset.symbol
                     const cleanName = asset.name.endsWith('.EQ') ? asset.name.replace('.EQ', '') : asset.name
 
+                    // Determine if we got real-time data
+                    const hasRealTimeData = realPriceData && realPriceData.currentPrice !== parseFloat(asset.cost_basis)
+                    const noteMessage = !hasRealTimeData
+                        ? `No real-time price data available for ${asset.symbol}. Using cost basis. Check that the ticker symbol is correct.`
+                        : undefined
+
                     return {
                         symbol: asset.symbol,
                         name: cleanName,
@@ -144,7 +153,7 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
                         unrealizedPnLPercentage,
                         source: 'manual' as const,
                         manualId: asset.id,
-                        ...(currentPrice === costBasis ? { note: 'No real-time price data available' } : {})
+                        ...(noteMessage ? { note: noteMessage } : {})
                     }
                 })
 
