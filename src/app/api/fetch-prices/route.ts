@@ -101,7 +101,9 @@ async function fetchCryptoPrice(symbol: string): Promise<{ currentPrice: number;
 
 async function fetchEquityPrice(symbol: string): Promise<{ currentPrice: number; previousClose: number } | null> {
     try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=2d&interval=1d`
+        const encodedSymbol = encodeURIComponent(symbol)
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodedSymbol}?range=5d&interval=1d`
+        console.log(`Fetching equity price for ${symbol} (encoded: ${encodedSymbol})`)
         const response = await axios.get(url, {
             timeout: 5000,
             headers: {
@@ -115,21 +117,37 @@ async function fetchEquityPrice(symbol: string): Promise<{ currentPrice: number;
         }
 
         const result = response.data.chart.result[0]
-        const currentPrice = result.meta?.regularMarketPrice
-        const timestamps = result.timestamp || []
-        const closes = result.indicators?.quote?.[0]?.close || []
+        const meta = result.meta
 
-        if (!currentPrice || timestamps.length < 2 || closes.length < 2) {
-            console.warn(`Incomplete price data from Yahoo Finance for ${symbol}`)
+        console.log(`Meta data for ${symbol}:`, {
+            regularMarketPrice: meta?.regularMarketPrice,
+            previousClose: meta?.previousClose,
+            chartPreviousClose: meta?.chartPreviousClose
+        })
+
+        // Get the most current price available (post-market, regular market, or previous close)
+        const currentPrice = meta?.regularMarketPrice || meta?.previousClose
+        const previousClose = meta?.chartPreviousClose || meta?.previousClose
+
+        const closes = result.indicators?.quote?.[0]?.close || []
+        const validCloses = closes.filter((c: number | null) => c !== null && !isNaN(c))
+
+        console.log(`Valid closes for ${symbol}:`, validCloses)
+
+        // Use previous day's close if available
+        const prevClose = validCloses.length >= 2
+            ? validCloses[validCloses.length - 2]
+            : (previousClose || currentPrice)
+
+        if (!currentPrice) {
+            console.warn(`No current price available from Yahoo Finance for ${symbol}`)
             return null
         }
 
-        const previousClose = closes[closes.length - 2]
-
-        console.log(`✓ Successfully fetched equity price for ${symbol}: $${currentPrice}`)
+        console.log(`✓ Successfully fetched equity price for ${symbol}: Current=$${currentPrice}, Previous=$${prevClose}`)
         return {
             currentPrice,
-            previousClose: previousClose || currentPrice
+            previousClose: prevClose
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
