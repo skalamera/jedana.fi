@@ -10,7 +10,6 @@ interface PortfolioSummaryProps {
 
 export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps) {
     const router = useRouter()
-    const [spyPerformance, setSpyPerformance] = useState<number | null>(null)
     const [currentSpyPrice, setCurrentSpyPrice] = useState<number | null>(null)
     const [startingSpyPrice, setStartingSpyPrice] = useState<number | null>(null)
     const [isEditingSpyPrice, setIsEditingSpyPrice] = useState(false)
@@ -24,9 +23,9 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
         }
     }, [])
 
-    // Fetch S&P 500 (^GSPC) daily performance using server-side API
+    // Fetch S&P 500 (^GSPC) current price using server-side API
     useEffect(() => {
-        async function fetchSPYPerformance() {
+        async function fetchSPYPrice() {
             try {
                 const response = await fetch('/api/fetch-prices', {
                     method: 'POST',
@@ -46,19 +45,13 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                 const data = await response.json()
                 console.log('API Response:', data)
                 console.log('Available price keys:', Object.keys(data.prices || {}))
-
+                
                 // Try different possible keys for the S&P 500 data
                 const spyData = data.prices?.['^GSPC'] || data.prices?.['%5EGSPC'] || data.prices?.['^INX'] || data.prices?.['%5EINX'] || data.prices?.[Object.keys(data.prices || {})[0]]
                 console.log('S&P 500 Data:', spyData)
 
-                if (spyData && spyData.currentPrice && spyData.previousClose) {
-                    const percentChange = ((spyData.currentPrice - spyData.previousClose) / spyData.previousClose) * 100
-                    console.log('S&P 500 Data:', {
-                        currentPrice: spyData.currentPrice,
-                        previousClose: spyData.previousClose,
-                        percentChange
-                    })
-                    setSpyPerformance(percentChange)
+                if (spyData && spyData.currentPrice) {
+                    console.log('S&P 500 Current Price:', spyData.currentPrice)
                     setCurrentSpyPrice(spyData.currentPrice)
 
                     // If no starting price is set, default to current price
@@ -70,11 +63,11 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                     console.error('Invalid S&P 500 data received:', spyData)
                 }
             } catch (error) {
-                console.error('Failed to fetch S&P 500 performance:', error)
+                console.error('Failed to fetch S&P 500 price:', error)
             }
         }
 
-        fetchSPYPerformance()
+        fetchSPYPrice()
     }, [startingSpyPrice])
 
     const handleEditSpyPrice = () => {
