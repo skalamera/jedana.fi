@@ -2,6 +2,8 @@ import { TrendingUp, TrendingDown, DollarSign, Sparkles, BarChart3, Edit2 } from
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import type { Portfolio } from '@/types'
+import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/stores/auth-store'
 
 interface PortfolioSummaryProps {
     portfolio: Portfolio | null
@@ -10,18 +12,40 @@ interface PortfolioSummaryProps {
 
 export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps) {
     const router = useRouter()
+    const { user } = useAuthStore()
     const [currentSpyPrice, setCurrentSpyPrice] = useState<number | null>(null)
     const [startingSpyPrice, setStartingSpyPrice] = useState<number | null>(null)
     const [isEditingSpyPrice, setIsEditingSpyPrice] = useState(false)
     const [tempSpyPrice, setTempSpyPrice] = useState<string>('')
 
-    // Load starting S&P 500 price from localStorage on mount
+    // Load starting S&P 500 price from Supabase on mount
     useEffect(() => {
-        const saved = localStorage.getItem('startingSpyPrice')
-        if (saved) {
-            setStartingSpyPrice(parseFloat(saved))
+        async function loadStartingPrice() {
+            if (!user?.id) return
+
+            try {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('sp500_starting_price')
+                    .eq('id', user.id)
+                    .single()
+
+                if (error) {
+                    console.error('Error loading S&P 500 starting price:', error)
+                    return
+                }
+
+                if (data?.sp500_starting_price) {
+                    console.log('Loaded S&P 500 starting price from DB:', data.sp500_starting_price)
+                    setStartingSpyPrice(parseFloat(data.sp500_starting_price))
+                }
+            } catch (error) {
+                console.error('Failed to load S&P 500 starting price:', error)
+            }
         }
-    }, [])
+
+        loadStartingPrice()
+    }, [user?.id])
 
     // Fetch S&P 500 (^GSPC) current price using server-side API
     useEffect(() => {
@@ -45,7 +69,7 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                 const data = await response.json()
                 console.log('API Response:', data)
                 console.log('Available price keys:', Object.keys(data.prices || {}))
-                
+
                 // Try different possible keys for the S&P 500 data
                 const spyData = data.prices?.['^GSPC'] || data.prices?.['%5EGSPC'] || data.prices?.['^INX'] || data.prices?.['%5EINX'] || data.prices?.[Object.keys(data.prices || {})[0]]
                 console.log('S&P 500 Data:', spyData)
@@ -54,10 +78,22 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                     console.log('S&P 500 Current Price:', spyData.currentPrice)
                     setCurrentSpyPrice(spyData.currentPrice)
 
-                    // If no starting price is set, default to current price
-                    if (startingSpyPrice === null) {
+                    // If no starting price is set, default to current price and save to DB
+                    if (startingSpyPrice === null && user?.id) {
                         setStartingSpyPrice(spyData.currentPrice)
-                        localStorage.setItem('startingSpyPrice', spyData.currentPrice.toString())
+                        
+                        // Save to database
+                        supabase
+                            .from('profiles')
+                            .update({ sp500_starting_price: spyData.currentPrice })
+                            .eq('id', user.id)
+                            .then(({ error }) => {
+                                if (error) {
+                                    console.error('Error saving S&P 500 starting price:', error)
+                                } else {
+                                    console.log('S&P 500 starting price saved to DB:', spyData.currentPrice)
+                                }
+                            })
                     }
                 } else {
                     console.error('Invalid S&P 500 data received:', spyData)
@@ -68,18 +104,29 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
         }
 
         fetchSPYPrice()
-    }, [startingSpyPrice])
+    }, [startingSpyPrice, user?.id])
 
     const handleEditSpyPrice = () => {
         setTempSpyPrice(startingSpyPrice?.toFixed(2) || '')
         setIsEditingSpyPrice(true)
     }
 
-    const handleSaveSpyPrice = () => {
+    const handleSaveSpyPrice = async () => {
         const newPrice = parseFloat(tempSpyPrice)
-        if (!isNaN(newPrice) && newPrice > 0) {
+        if (!isNaN(newPrice) && newPrice > 0 && user?.id) {
             setStartingSpyPrice(newPrice)
-            localStorage.setItem('startingSpyPrice', newPrice.toString())
+            
+            // Save to database
+            const { error } = await supabase
+                .from('profiles')
+                .update({ sp500_starting_price: newPrice })
+                .eq('id', user.id)
+
+            if (error) {
+                console.error('Error saving S&P 500 starting price:', error)
+            } else {
+                console.log('S&P 500 starting price updated in DB:', newPrice)
+            }
         }
         setIsEditingSpyPrice(false)
     }
