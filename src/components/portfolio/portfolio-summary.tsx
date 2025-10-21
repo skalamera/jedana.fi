@@ -17,6 +17,7 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
     const [startingSpyPrice, setStartingSpyPrice] = useState<number | null>(null)
     const [isEditingSpyPrice, setIsEditingSpyPrice] = useState(false)
     const [tempSpyPrice, setTempSpyPrice] = useState<string>('')
+    const [priceLoadedFromDB, setPriceLoadedFromDB] = useState(false)
 
     // Load starting S&P 500 price from Supabase on mount
     useEffect(() => {
@@ -38,9 +39,15 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                 if (data?.sp500_starting_price) {
                     console.log('Loaded S&P 500 starting price from DB:', data.sp500_starting_price)
                     setStartingSpyPrice(parseFloat(data.sp500_starting_price))
+                } else {
+                    // No value in DB, will be set to current price when fetched
+                    console.log('No S&P 500 starting price in DB, will use current price')
+                    setStartingSpyPrice(null)
                 }
+                setPriceLoadedFromDB(true)
             } catch (error) {
                 console.error('Failed to load S&P 500 starting price:', error)
+                setPriceLoadedFromDB(true)
             }
         }
 
@@ -49,6 +56,9 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
 
     // Fetch S&P 500 (^GSPC) current price using server-side API
     useEffect(() => {
+        // Don't fetch until we've loaded from DB
+        if (!priceLoadedFromDB) return
+
         async function fetchSPYPrice() {
             try {
                 const response = await fetch('/api/fetch-prices', {
@@ -69,7 +79,7 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                 const data = await response.json()
                 console.log('API Response:', data)
                 console.log('Available price keys:', Object.keys(data.prices || {}))
-
+                
                 // Try different possible keys for the S&P 500 data
                 const spyData = data.prices?.['^GSPC'] || data.prices?.['%5EGSPC'] || data.prices?.['^INX'] || data.prices?.['%5EINX'] || data.prices?.[Object.keys(data.prices || {})[0]]
                 console.log('S&P 500 Data:', spyData)
@@ -78,8 +88,9 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                     console.log('S&P 500 Current Price:', spyData.currentPrice)
                     setCurrentSpyPrice(spyData.currentPrice)
 
-                    // If no starting price is set, default to current price and save to DB
-                    if (startingSpyPrice === null && user?.id) {
+                    // Only set default if there's no value in DB AND user is logged in
+                    if (startingSpyPrice === null && user?.id && priceLoadedFromDB) {
+                        console.log('No starting price in DB, setting to current price:', spyData.currentPrice)
                         setStartingSpyPrice(spyData.currentPrice)
                         
                         // Save to database
@@ -104,7 +115,7 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
         }
 
         fetchSPYPrice()
-    }, [startingSpyPrice, user?.id])
+    }, [priceLoadedFromDB, user?.id])
 
     const handleEditSpyPrice = () => {
         setTempSpyPrice(startingSpyPrice?.toFixed(2) || '')
@@ -115,7 +126,7 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
         const newPrice = parseFloat(tempSpyPrice)
         if (!isNaN(newPrice) && newPrice > 0 && user?.id) {
             setStartingSpyPrice(newPrice)
-            
+
             // Save to database
             const { error } = await supabase
                 .from('profiles')
