@@ -133,6 +133,9 @@ export interface AIScreenerRequest {
     portfolioType: PortfolioType
     userQuery: string
     riskTolerance: number // 0-100
+    timeHorizon?: 'short_term' | 'medium_term' | 'long_term'
+    sectorPreferences?: string[]
+    investingPhilosophy?: string
 }
 
 export interface TechnicalAnalysis {
@@ -226,6 +229,9 @@ export interface AIScreenerForm {
     portfolioType: PortfolioType
     userQuery: string
     riskTolerance: number // 0-100
+    timeHorizon?: 'short_term' | 'medium_term' | 'long_term'
+    sectorPreferences?: string[]
+    investingPhilosophy?: string
 }
 
 export interface AIScreenerState {

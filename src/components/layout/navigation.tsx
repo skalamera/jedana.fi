@@ -6,7 +6,7 @@ import { LayoutDashboard, Settings, PlusCircle, Home, Brain, Bookmark } from 'lu
 
 const navigation = [
     { name: 'Portfolio', href: '/', icon: LayoutDashboard, mobileLabel: 'Portfolio' },
-    { name: 'AI Screener', href: '/ai-screener', icon: Brain, mobileLabel: 'AI' },
+    { name: 'AI', href: '/ai-screener', icon: Brain, mobileLabel: 'AI' },
     { name: 'Analysis', href: '/analysis', icon: Bookmark, mobileLabel: 'Saved' },
     { name: 'Add Asset', href: '/add-asset', icon: PlusCircle, mobileLabel: 'Add' },
     // Settings moved to top header; keep mobile access optionally by uncommenting below

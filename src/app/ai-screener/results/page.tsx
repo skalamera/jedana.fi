@@ -40,32 +40,20 @@ export default function AIScreenerResultsPage() {
         const dataParam = searchParams.get('data')
 
         try {
-            if (id) {
-                const stored = sessionStorage.getItem(id)
-                if (stored) {
-                    setResult(JSON.parse(stored))
-                    setIsLoading(false)
-                    return
-                }
-            }
-
-            if (dataParam) {
-                // Backward compatibility with old URL param
-                const parsedResult = JSON.parse(decodeURIComponent(dataParam))
-                setResult(parsedResult)
+            if (!id) {
+                setError('No analysis data provided')
                 setIsLoading(false)
                 return
             }
 
-            // Fallback to global (if sessionStorage blocked)
-            const fallback = (window as any).__AI_SCREENER_RESULT__
-            if (fallback) {
-                setResult(fallback)
+            const stored = sessionStorage.getItem(id)
+            if (stored) {
+                setResult(JSON.parse(stored))
                 setIsLoading(false)
                 return
             }
 
-            setError('No analysis data provided')
+            setError('Analysis data expired. Please run the AI screener again.')
             setIsLoading(false)
         } catch {
             setError('Failed to load analysis results')
@@ -512,8 +500,8 @@ function Carousel({ assets }: { assets: AssetAnalysis[] }) {
                                     key={index}
                                     onClick={() => goToIndex(index)}
                                     className={`transition-all duration-200 rounded-full ${index === currentIndex
-                                            ? 'w-8 h-2.5 bg-blue-600 dark:bg-blue-400'
-                                            : 'w-2.5 h-2.5 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'
+                                        ? 'w-8 h-2.5 bg-blue-600 dark:bg-blue-400'
+                                        : 'w-2.5 h-2.5 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'
                                         }`}
                                     aria-label={`Go to asset ${index + 1}`}
                                 />

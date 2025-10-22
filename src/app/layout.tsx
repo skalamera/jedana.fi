@@ -3,7 +3,6 @@ import { Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
-import DemoTour from "@/components/demo/demo-tour";
 
 const notoSansJP = Noto_Sans_JP({
   subsets: ["latin"],
@@ -31,9 +30,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${notoSansJP.className} antialiased`}>
         <ThemeProvider defaultTheme="dark" storageKey="kraken-theme">
-          <AuthProvider>
-            <DemoTour>{children}</DemoTour>
-          </AuthProvider>
+          <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
       </body>
     </html>

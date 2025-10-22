@@ -39,13 +39,6 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
                 throw new Error('Not authenticated')
             }
 
-            // Demo mode for a specific user email
-            if (session.user.email && session.user.email.toLowerCase() === 'skalamera@live.com') {
-                const demoPortfolio = buildDemoPortfolio()
-                set({ portfolio: demoPortfolio, isLoading: false })
-                return
-            }
-
             // Small delay to ensure auth state is stable
             await new Promise(resolve => setTimeout(resolve, 100))
 
@@ -432,57 +425,3 @@ function safeNumber(value: number | undefined | null): number {
     return value
 }
 
-// ---------- Demo Mode Helpers ----------
-function buildDemoPortfolio(): Portfolio {
-    type Seed = { symbol: string; name: string; balance: number; current: number; previous: number; costBasis: number; equity?: boolean }
-
-    const seeds: Seed[] = [
-        // Crypto
-        { symbol: 'BTC', name: 'Bitcoin', balance: 0.334324, current: 65000, previous: 64000, costBasis: 40045.7 },
-        { symbol: 'ETH', name: 'Ethereum', balance: 0.51178, current: 3200, previous: 3100, costBasis: 2311.69 },
-        { symbol: 'XRP', name: 'Ripple', balance: 86.88974, current: 0.55, previous: 0.53, costBasis: 243 },
-        // Stocks & ETFs
-        { symbol: 'AAPL', name: 'Apple Inc.', balance: 25, current: 190, previous: 188, costBasis: 4000, equity: true },
-        { symbol: 'NVDA', name: 'NVIDIA Corporation', balance: 5, current: 1100, previous: 1080, costBasis: 4500, equity: true },
-        { symbol: 'SPY', name: 'SPDR S&P 500 ETF', balance: 5, current: 510, previous: 505, costBasis: 2400, equity: true },
-    ]
-
-    const assets = seeds.map(seed => toPortfolioAsset(seed))
-    const totalValue = assets.reduce((s, a) => s + a.value, 0)
-    const totalDailyPnL = assets.reduce((s, a) => s + a.dailyPnL, 0)
-    const previousTotal = assets.reduce((s, a) => s + (a.value - a.dailyPnL), 0)
-    const totalDailyPnLPercentage = previousTotal > 0 ? (totalDailyPnL / previousTotal) * 100 : 0
-
-    return {
-        assets,
-        totalValue,
-        totalDailyPnL,
-        totalDailyPnLPercentage,
-        lastUpdated: new Date().toISOString(),
-    }
-}
-
-function toPortfolioAsset(seed: { symbol: string; name: string; balance: number; current: number; previous: number; costBasis: number; equity?: boolean }): Portfolio['assets'][number] {
-    const symbol = seed.equity ? `${seed.symbol}.EQ` : seed.symbol
-    const value = seed.balance * seed.current
-    const previousValue = seed.balance * seed.previous
-    const dailyPnL = value - previousValue
-    const dailyPnLPercentage = previousValue > 0 ? (dailyPnL / previousValue) * 100 : 0
-    const unrealizedPnL = value - seed.costBasis
-    const unrealizedPnLPercentage = seed.costBasis > 0 ? (unrealizedPnL / seed.costBasis) * 100 : 0
-
-    return {
-        symbol,
-        name: seed.name,
-        asset_type: seed.equity ? 'equity' : 'crypto',
-        balance: seed.balance,
-        currentPrice: seed.current,
-        costBasis: seed.costBasis,
-        value,
-        dailyPnL,
-        dailyPnLPercentage,
-        unrealizedPnL,
-        unrealizedPnLPercentage,
-        source: 'kraken',
-    }
-}

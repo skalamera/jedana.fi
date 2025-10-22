@@ -3,34 +3,16 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-// Check if we're in development and provide helpful setup instructions
-const isDevelopment = process.env.NODE_ENV === 'development'
-
-// Basic validation - just check if variables exist (less strict for development)
-if (!supabaseUrl || !supabaseAnonKey) {
-    if (isDevelopment) {
-        console.warn(
-            '⚠️  Supabase environment variables not configured.\n' +
-            '📝 Please ensure .env.local contains:\n' +
-            '   NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co\n' +
-            '   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here\n' +
-            '🔧 Run the database migration after setting up Supabase.'
-        )
-    }
-    // Don't throw error - allow the app to load and show auth page
-}
-
 export const supabase = (() => {
-    // Check if we have valid credentials
-    if (supabaseUrl && supabaseAnonKey &&
-        supabaseUrl !== 'https://your-project-id.supabase.co' &&
-        supabaseAnonKey !== 'your-anon-key-here') {
-        return createClient(supabaseUrl, supabaseAnonKey)
+    if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('Supabase environment variables are not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.')
     }
 
-    // Return a mock client for development/testing
-    console.warn('Using placeholder Supabase client - authentication may not work properly')
-    return createClient('https://placeholder.supabase.co', 'placeholder-key')
+    if (supabaseUrl === 'https://your-project-id.supabase.co' || supabaseAnonKey === 'your-anon-key-here') {
+        throw new Error('Supabase environment variables are using placeholder values. Please update NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.')
+    }
+
+    return createClient(supabaseUrl, supabaseAnonKey)
 })()
 
 // Types for better TypeScript support

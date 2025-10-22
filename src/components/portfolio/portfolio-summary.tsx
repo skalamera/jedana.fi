@@ -4,7 +4,17 @@ import { useState, useEffect, useMemo } from 'react'
 import type { Portfolio } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth-store'
-import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip } from 'recharts'
+import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip, ReferenceLine } from 'recharts'
+
+interface ChartPoint {
+    date: string
+    value: number
+    spy: number
+    spyActual: number
+    portfolioReturn: number
+    spyReturn: number
+    performanceDiff: number
+}
 
 interface PortfolioSummaryProps {
     portfolio: Portfolio | null
@@ -27,7 +37,7 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
     const [historicalData, setHistoricalData] = useState<any[]>([])
     const [isLoadingHistory, setIsLoadingHistory] = useState(false)
 
-    // Load starting S&P 500 price from Supabase on mount
+    // Load starting S&P 500 price and saved chart start date from Supabase on mount
     useEffect(() => {
         async function loadStartingPrice() {
             if (!user?.id) return
@@ -35,7 +45,7 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
             try {
                 const { data, error } = await supabase
                     .from('profiles')
-                    .select('sp500_starting_price')
+                    .select('sp500_starting_price, portfolio_chart_start_date')
                     .eq('id', user.id)
                     .single()
 
@@ -51,6 +61,11 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                     // No value in DB, will be set to current price when fetched
                     console.log('No S&P 500 starting price in DB, will use current price')
                     setStartingSpyPrice(null)
+                }
+
+                if (data?.portfolio_chart_start_date) {
+                    const saved = new Date(String(data.portfolio_chart_start_date))
+                    if (!isNaN(saved.getTime())) setChartStartDate(saved)
                 }
                 setPriceLoadedFromDB(true)
             } catch (error) {
@@ -202,23 +217,39 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
         : null
 
     // Process historical chart data
-    const chartData = useMemo(() => {
-        if (!portfolio || historicalData.length === 0) return []
+    const { chartData, chartBaseValue } = useMemo(() => {
+        if (!portfolio || historicalData.length === 0) {
+            return {
+                chartData: [] as ChartPoint[],
+                chartBaseValue: portfolio?.totalValue ?? 0
+            }
+        }
 
-        // Use real historical data
         const firstValue = historicalData[0]?.portfolioValue || portfolio.totalValue
+        const firstSpyPrice = historicalData[0]?.spyPrice || 1
 
-        return historicalData.map((point) => {
-            // Normalize S&P 500 to portfolio scale for visual comparison
-            const spyNormalized = (point.spyPrice / historicalData[0].spyPrice) * firstValue
+        const data: ChartPoint[] = historicalData.map((point) => {
+            const spyNormalized = (point.spyPrice / firstSpyPrice) * firstValue
+
+            const portfolioReturn = ((point.portfolioValue - firstValue) / firstValue) * 100
+            const spyReturn = ((point.spyPrice - firstSpyPrice) / firstSpyPrice) * 100
+            const performanceDiff = portfolioReturn - spyReturn
 
             return {
                 date: point.date,
                 value: point.portfolioValue,
                 spy: spyNormalized,
-                spyActual: point.spyPrice
+                spyActual: point.spyPrice,
+                portfolioReturn,
+                spyReturn,
+                performanceDiff
             }
         })
+
+        return {
+            chartData: data,
+            chartBaseValue: firstValue
+        }
     }, [historicalData, portfolio])
 
     // Calculate max and min values for portfolio
@@ -237,13 +268,8 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
         if (active && payload && payload.length) {
             const data = payload[0].payload
 
-            // Calculate percentage difference at this point
-            // Compare normalized values to show relative performance
-            const portfolioNormalized = data.value
-            const spyNormalized = data.spy
-            const percentDiff = spyNormalized > 0
-                ? ((portfolioNormalized - spyNormalized) / spyNormalized) * 100
-                : 0
+            // Use pre-calculated performance difference from actual returns
+            const percentDiff = data.performanceDiff || 0
             const isBeating = percentDiff > 0
 
             return (
@@ -251,14 +277,28 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                     <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
                         {data.date}
                     </p>
-                    <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
-                        Portfolio: {formatCurrency(data.value)}
-                    </p>
+                    <div className="space-y-0.5">
+                        <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+                            Portfolio: {formatCurrency(data.value)}
+                        </p>
+                        {data.portfolioReturn !== undefined && (
+                            <p className={`text-xs font-medium ${data.portfolioReturn >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                {data.portfolioReturn >= 0 ? '+' : ''}{data.portfolioReturn.toFixed(2)}% return
+                            </p>
+                        )}
+                    </div>
                     {data.spyActual && (
                         <>
-                            <p className="text-sm font-bold text-amber-600 dark:text-amber-400 mt-1">
-                                S&P 500: ${data.spyActual.toFixed(2)}
-                            </p>
+                            <div className="space-y-0.5 mt-1">
+                                <p className="text-sm font-bold text-amber-600 dark:text-amber-400">
+                                    S&P 500: ${data.spyActual.toFixed(2)}
+                                </p>
+                                {data.spyReturn !== undefined && (
+                                    <p className={`text-xs font-medium ${data.spyReturn >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                        {data.spyReturn >= 0 ? '+' : ''}{data.spyReturn.toFixed(2)}% return
+                                    </p>
+                                )}
+                            </div>
                             <div className={`text-xs font-semibold mt-1.5 pt-1.5 border-t border-gray-200 dark:border-gray-700 ${isBeating ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                                 }`}>
                                 {isBeating ? '🎯' : '📉'} {isBeating ? '+' : ''}{percentDiff.toFixed(2)}% vs S&P
@@ -364,10 +404,17 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                                         <input
                                             type="date"
                                             value={chartStartDate.toISOString().split('T')[0]}
-                                            onChange={(e) => {
+                                            onChange={async (e) => {
                                                 const newDate = new Date(e.target.value)
-                                                if (!isNaN(newDate.getTime())) {
-                                                    setChartStartDate(newDate)
+                                                if (isNaN(newDate.getTime())) return
+                                                setChartStartDate(newDate)
+                                                if (user?.id) {
+                                                    const isoDate = newDate.toISOString().split('T')[0]
+                                                    const { error } = await supabase
+                                                        .from('profiles')
+                                                        .update({ portfolio_chart_start_date: isoDate })
+                                                        .eq('id', user.id)
+                                                    if (error) console.error('Error saving chart start date:', error)
                                                 }
                                             }}
                                             max={new Date().toISOString().split('T')[0]}
@@ -391,43 +438,46 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                                     <span>Min: {formatCurrency(chartStats.min)}</span>
                                 </div>
                                 {isLoadingHistory ? (
-                                    <div className="flex items-center justify-center h-[110px]">
+                                    <div className="flex items-center justify-center h-[150px] md:h-[200px]">
                                         <div className="text-white/60 text-sm">Loading historical data...</div>
                                     </div>
                                 ) : chartData.length === 0 ? (
-                                    <div className="flex items-center justify-center h-[110px]">
+                                    <div className="flex items-center justify-center h-[150px] md:h-[200px]">
                                         <div className="text-white/60 text-sm">No historical data available</div>
                                     </div>
                                 ) : (
-                                    <ResponsiveContainer width="100%" height={110}>
-                                        <LineChart data={chartData} margin={{ top: 15, right: 15, left: 15, bottom: 15 }}>
-                                            <YAxis
-                                                domain={['dataMin - dataMin * 0.1', 'dataMax + dataMax * 0.1']}
-                                                hide
-                                            />
-                                            <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#ffffff', strokeWidth: 1, strokeDasharray: '3 3' }} />
-                                            {/* S&P 500 Line */}
-                                            <Line
-                                                type="monotone"
-                                                dataKey="spy"
-                                                stroke="#fbbf24"
-                                                strokeWidth={2}
-                                                dot={false}
-                                                isAnimationActive={true}
-                                                yAxisId={0}
-                                            />
-                                            {/* Portfolio Value Line */}
-                                            <Line
-                                                type="monotone"
-                                                dataKey="value"
-                                                stroke="#ffffff"
-                                                strokeWidth={2.5}
-                                                dot={false}
-                                                isAnimationActive={true}
-                                                yAxisId={0}
-                                            />
-                                        </LineChart>
-                                    </ResponsiveContainer>
+                                    <div className="h-[150px] md:h-[200px]">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={chartData} margin={{ top: 15, right: 15, left: 15, bottom: 15 }}>
+                                                <YAxis
+                                                    domain={['dataMin - dataMin * 0.1', 'dataMax + dataMax * 0.1']}
+                                                    hide
+                                                />
+                                                <ReferenceLine y={chartBaseValue} stroke="#60a5fa" strokeDasharray="6 6" opacity={0.6} />
+                                                <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#ffffff', strokeWidth: 1, strokeDasharray: '3 3' }} />
+                                                {/* S&P 500 Line */}
+                                                <Line
+                                                    type="monotone"
+                                                    dataKey="spy"
+                                                    stroke="#fbbf24"
+                                                    strokeWidth={2}
+                                                    dot={false}
+                                                    isAnimationActive={true}
+                                                    yAxisId={0}
+                                                />
+                                                {/* Portfolio Value Line */}
+                                                <Line
+                                                    type="monotone"
+                                                    dataKey="value"
+                                                    stroke="#ffffff"
+                                                    strokeWidth={2.5}
+                                                    dot={false}
+                                                    isAnimationActive={true}
+                                                    yAxisId={0}
+                                                />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
                                 )}
                             </div>
                         </div>
@@ -476,6 +526,20 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                                                     {formatPercentage(spyTotalPerformance)}
                                                 </dd>
                                             </div>
+                                        </div>
+
+                                        {/* Performance Difference */}
+                                        <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-white/20">
+                                            <dt className="text-[10px] md:text-xs font-medium text-white/80 uppercase tracking-wide mb-2">
+                                                Performance Difference
+                                            </dt>
+                                            <dd className={`text-lg md:text-2xl font-bold ${totalUnrealizedPnLPercentage > spyTotalPerformance
+                                                ? 'text-emerald-300'
+                                                : 'text-rose-300'
+                                                }`}>
+                                                {totalUnrealizedPnLPercentage > spyTotalPerformance ? '+' : ''}
+                                                {(totalUnrealizedPnLPercentage - spyTotalPerformance).toFixed(2)}%
+                                            </dd>
                                         </div>
 
                                         {/* Editable S&P Starting Price */}

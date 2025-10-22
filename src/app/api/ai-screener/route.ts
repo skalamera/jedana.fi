@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 }
 
 function createAIPrompt(request: AIScreenerRequest): string {
-    const { portfolioType, userQuery } = request
+    const { portfolioType, userQuery, timeHorizon, sectorPreferences, investingPhilosophy } = request
 
     let assetTypes = ''
     switch (portfolioType) {
@@ -115,7 +115,13 @@ function createAIPrompt(request: AIScreenerRequest): string {
             break
     }
 
-    return `Research and recommend 5 high-quality ${assetTypes} that match these investment criteria: "${userQuery}"
+    const horizonText = timeHorizon === 'short_term' ? 'short-term (0-12 months) focus' : timeHorizon === 'medium_term' ? 'medium-term (1-3 years) focus' : timeHorizon === 'long_term' ? 'long-term (3+ years) focus' : 'appropriate time horizon'
+    const sectorText = Array.isArray(sectorPreferences) && sectorPreferences.length > 0 ? `Focus on sectors: ${sectorPreferences.join(', ')}.` : ''
+    const philosophyText = portfolioType === 'stocks' && investingPhilosophy ? `Investor philosophy preference: ${investingPhilosophy}.` : ''
+
+    return `Research and recommend 5 high-quality ${assetTypes} that match these investment criteria: "${userQuery}".
+
+Context: ${horizonText}. ${sectorText} ${philosophyText}
 
 CRITICAL INSTRUCTIONS:
 - Each stock MUST have UNIQUE and SPECIFIC strengths, risks, and technical analysis
