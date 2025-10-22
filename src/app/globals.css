@@ -86,6 +86,17 @@ body {
   }
 }
 
+/* Custom animations */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 /* Custom color scheme based on provided palette */
 :root {
   /* Base colors from palette */

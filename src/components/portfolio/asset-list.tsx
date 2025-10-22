@@ -103,6 +103,15 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
         if (value === undefined || isNaN(value)) {
             return '$0.00'
         }
+        // For large numbers (>= 1000), don't show decimals
+        if (Math.abs(value) >= 1000) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+            }).format(value)
+        }
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: 'USD',
@@ -116,6 +125,13 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
         }
         const sign = value >= 0 ? '+' : ''
         return `${sign}${value.toFixed(2)}%`
+    }
+
+    const formatQuantity = (value: number) => {
+        // Remove trailing zeros and unnecessary decimal points
+        const formatted = value.toFixed(8)
+        const trimmed = formatted.replace(/\.?0+$/, '')
+        return trimmed || '0'
     }
 
 
@@ -178,22 +194,22 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                             />
                                         )}
                                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${isCash(asset)
-                                                ? 'text-emerald-800 dark:text-emerald-300'
-                                                : asset.symbol.endsWith('.EQ') && !isETF(asset)
-                                                    ? 'text-purple-800 dark:text-purple-300'
-                                                    : asset.symbol.endsWith('.EQ') && isETF(asset)
-                                                        ? 'text-indigo-800 dark:text-indigo-300'
-                                                        : asset.source === 'kraken'
-                                                            ? 'text-blue-800 dark:text-blue-300'
-                                                            : asset.asset_type === 'crypto'
-                                                                ? 'text-teal-800 dark:text-teal-300'
-                                                                : (asset.asset_type === 'equity' || asset.asset_type === 'manual') && isETF(asset)
-                                                                    ? 'text-indigo-800 dark:text-indigo-300'
-                                                                    : asset.asset_type === 'equity'
-                                                                        ? 'text-orange-800 dark:text-orange-300'
-                                                                        : asset.asset_type === 'manual' && isETF(asset)
-                                                                            ? 'text-indigo-800 dark:text-indigo-300'
-                                                                            : 'text-gray-800 dark:text-gray-300'
+                                            ? 'text-emerald-800 dark:text-emerald-300'
+                                            : asset.symbol.endsWith('.EQ') && !isETF(asset)
+                                                ? 'text-purple-800 dark:text-purple-300'
+                                                : asset.symbol.endsWith('.EQ') && isETF(asset)
+                                                    ? 'text-indigo-800 dark:text-indigo-300'
+                                                    : asset.source === 'kraken'
+                                                        ? 'text-blue-800 dark:text-blue-300'
+                                                        : asset.asset_type === 'crypto'
+                                                            ? 'text-teal-800 dark:text-teal-300'
+                                                            : (asset.asset_type === 'equity' || asset.asset_type === 'manual') && isETF(asset)
+                                                                ? 'text-indigo-800 dark:text-indigo-300'
+                                                                : asset.asset_type === 'equity'
+                                                                    ? 'text-orange-800 dark:text-orange-300'
+                                                                    : asset.asset_type === 'manual' && isETF(asset)
+                                                                        ? 'text-indigo-800 dark:text-indigo-300'
+                                                                        : 'text-gray-800 dark:text-gray-300'
                                             }`}>
                                             {isCash(asset)
                                                 ? 'Cash'
@@ -248,8 +264,8 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                         )}
                                     </div>
 
-                                    <div className="text-base font-mono font-bold text-gray-900 dark:text-white mb-1">
-                                        {asset.balance.toFixed(6)}
+                                    <div className="text-sm md:text-base font-mono font-bold text-gray-900 dark:text-white mb-1">
+                                        {formatQuantity(asset.balance)}
                                     </div>
                                     <div className="inline-flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700/50 px-2.5 py-1 rounded-full">
                                         <img
@@ -273,24 +289,24 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                         {/* All Asset Data in One Section */}
                         <div className="p-5">
                             {/* Primary Metrics Grid */}
-                            <div className={`grid gap-4 mb-5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-700/50 ${group === 'cash' ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-4'
+                            <div className={`grid gap-3 md:gap-4 mb-5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl p-3 md:p-4 border border-gray-200/50 dark:border-gray-700/50 ${group === 'cash' ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-4'
                                 }`}>
                                 {/* Price */}
                                 <div className="text-center">
-                                    <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
+                                    <div className="text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1 md:mb-2 text-gray-600 dark:text-gray-400">
                                         Price
                                     </div>
-                                    <div className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
+                                    <div className="text-sm md:text-xl font-bold text-gray-900 dark:text-white">
                                         {formatCurrency(asset.currentPrice)}
                                     </div>
                                 </div>
 
                                 {/* Value */}
                                 <div className="text-center">
-                                    <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
+                                    <div className="text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1 md:mb-2 text-gray-600 dark:text-gray-400">
                                         Value
                                     </div>
-                                    <div className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
+                                    <div className="text-sm md:text-xl font-bold text-gray-900 dark:text-white">
                                         {formatCurrency(asset.value)}
                                     </div>
                                 </div>
@@ -298,7 +314,7 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                 {/* Cost Basis - Hide for cash */}
                                 {group !== 'cash' && (
                                     <div className="text-center">
-                                        <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
+                                        <div className="text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1 md:mb-2 text-gray-600 dark:text-gray-400">
                                             Cost Basis
                                         </div>
                                         {editingCostBasis === asset.symbol ? (
@@ -329,7 +345,7 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                             </div>
                                         ) : (
                                             <div className="flex items-center justify-center space-x-1.5">
-                                                <div className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
+                                                <div className="text-sm md:text-xl font-bold text-gray-900 dark:text-white">
                                                     {formatCurrency(asset.costBasis)}
                                                 </div>
                                                 <button
@@ -347,20 +363,20 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                 {/* Daily P&L - Hide for cash */}
                                 {group !== 'cash' && (
                                     <div className="text-center">
-                                        <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
+                                        <div className="text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1 md:mb-2 text-gray-600 dark:text-gray-400">
                                             Daily P&L
                                         </div>
-                                        <div className={`text-lg md:text-xl font-bold flex items-center justify-center ${isPositivePnL ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                        <div className={`text-sm md:text-xl font-bold flex items-center justify-center ${isPositivePnL ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                             {asset.dailyPnL === 0 && asset.symbol.endsWith('.EQ') ? (
                                                 <span className="text-gray-400 dark:text-gray-500">—</span>
                                             ) : isPositivePnL ? (
-                                                <TrendingUp className="w-4 h-4 mr-1" />
+                                                <TrendingUp className="w-3 h-3 md:w-4 md:h-4 mr-1" />
                                             ) : (
-                                                <TrendingDown className="w-4 h-4 mr-1" />
+                                                <TrendingDown className="w-3 h-3 md:w-4 md:h-4 mr-1" />
                                             )}
                                             {asset.dailyPnL === 0 && asset.symbol.endsWith('.EQ') ? '' : formatCurrency(asset.dailyPnL)}
                                         </div>
-                                        <div className={`text-sm ${isPositivePnL ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                        <div className={`text-xs md:text-sm ${isPositivePnL ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                             {asset.dailyPnL === 0 && asset.symbol.endsWith('.EQ') ? (
                                                 <span className="text-gray-400 dark:text-gray-500">—</span>
                                             ) : (
@@ -374,25 +390,25 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                             {/* Unrealized P&L Section - When Available (Hide for cash) */}
                             {hasUnrealizedPnL && group !== 'cash' && (
                                 <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                                    <div className="grid grid-cols-2 gap-4 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-700/50">
+                                    <div className="grid grid-cols-2 gap-3 md:gap-4 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl p-3 md:p-4 border border-gray-200/50 dark:border-gray-700/50">
                                         <div className="text-center">
-                                            <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
+                                            <div className="text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1 md:mb-2 text-gray-600 dark:text-gray-400">
                                                 UP&L
                                             </div>
-                                            <div className={`text-lg md:text-xl font-bold flex items-center justify-center ${asset.unrealizedPnL && asset.unrealizedPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                            <div className={`text-sm md:text-xl font-bold flex items-center justify-center ${asset.unrealizedPnL && asset.unrealizedPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                                 {asset.unrealizedPnL && asset.unrealizedPnL >= 0 ? (
-                                                    <TrendingUp className="w-4 h-4 mr-1" />
+                                                    <TrendingUp className="w-3 h-3 md:w-4 md:h-4 mr-1" />
                                                 ) : (
-                                                    <TrendingDown className="w-4 h-4 mr-1" />
+                                                    <TrendingDown className="w-3 h-3 md:w-4 md:h-4 mr-1" />
                                                 )}
                                                 {formatCurrency(asset.unrealizedPnL)}
                                             </div>
                                         </div>
                                         <div className="text-center">
-                                            <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
+                                            <div className="text-[10px] md:text-xs font-bold uppercase tracking-wider mb-1 md:mb-2 text-gray-600 dark:text-gray-400">
                                                 Total %
                                             </div>
-                                            <div className={`text-lg md:text-xl font-bold ${asset.unrealizedPnL && asset.unrealizedPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                            <div className={`text-sm md:text-xl font-bold ${asset.unrealizedPnL && asset.unrealizedPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                                 {formatPercentage(asset.unrealizedPnLPercentage)}
                                             </div>
                                         </div>

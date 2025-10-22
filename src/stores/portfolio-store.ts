@@ -3,9 +3,33 @@ import type { Portfolio, ManualAsset, LoadingState } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { fetchManualAssetPrices } from '@/lib/price-fetcher'
 
+interface PortfolioData {
+    id: string
+    name: string
+    description?: string
+    is_default: boolean
+    created_at: string
+    updated_at: string
+}
+
 interface PortfolioStore extends LoadingState {
+    // Multiple portfolios
+    portfolios: PortfolioData[]
+    selectedPortfolioId: string | null
+    isLoadingPortfolios: boolean
+
+    // Current portfolio data
     portfolio: Portfolio | null
     manualAssets: ManualAsset[]
+
+    // Portfolio management
+    fetchPortfolios: () => Promise<void>
+    setSelectedPortfolio: (portfolioId: string) => void
+    createPortfolio: (name: string, description?: string) => Promise<void>
+    deletePortfolio: (portfolioId: string) => Promise<void>
+    setDefaultPortfolio: (portfolioId: string) => Promise<void>
+
+    // Asset management (for selected portfolio)
     refreshPortfolio: () => Promise<void>
     addManualAsset: (asset: Omit<ManualAsset, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<void>
     updateManualAsset: (id: string, asset: Partial<ManualAsset>) => Promise<void>
@@ -14,11 +38,163 @@ interface PortfolioStore extends LoadingState {
     updateAssetCostBasis: (symbol: string, assetType: 'crypto' | 'equity' | 'manual', costBasis: number) => Promise<void>
 }
 
-export const usePortfolioStore = create<PortfolioStore>((set) => ({
+export const usePortfolioStore = create<PortfolioStore>((set, get) => ({
+    // Multiple portfolios
+    portfolios: [],
+    selectedPortfolioId: null,
+    isLoadingPortfolios: false,
+
+    // Current portfolio data
     portfolio: null,
     manualAssets: [],
     isLoading: false,
     error: null,
+
+    // Portfolio management methods
+    fetchPortfolios: async () => {
+        set({ isLoadingPortfolios: true })
+        try {
+            const { data: { session } } = await supabase.auth.getSession()
+            if (!session) throw new Error('Not authenticated')
+
+            const response = await fetch('/api/portfolios', {
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`
+                }
+            })
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch portfolios')
+            }
+
+            const { portfolios } = await response.json()
+
+            // Set selected portfolio to default if not set, or first portfolio
+            const currentSelected = get().selectedPortfolioId
+            let selectedId = currentSelected
+
+            if (!selectedId || !portfolios.find((p: PortfolioData) => p.id === selectedId)) {
+                const defaultPortfolio = portfolios.find((p: PortfolioData) => p.is_default)
+                selectedId = defaultPortfolio?.id || portfolios[0]?.id || null
+            }
+
+            set({
+                portfolios,
+                selectedPortfolioId: selectedId,
+                isLoadingPortfolios: false
+            })
+
+            // Refresh portfolio data for selected portfolio
+            if (selectedId) {
+                await get().refreshPortfolio()
+            }
+        } catch (error) {
+            console.error('Failed to fetch portfolios:', error)
+            set({
+                error: error instanceof Error ? error.message : 'Failed to fetch portfolios',
+                isLoadingPortfolios: false
+            })
+        }
+    },
+
+    setSelectedPortfolio: (portfolioId: string) => {
+        set({ selectedPortfolioId: portfolioId })
+        // Refresh portfolio data when selection changes
+        get().refreshPortfolio()
+    },
+
+    createPortfolio: async (name: string, description?: string) => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession()
+            if (!session) throw new Error('Not authenticated')
+
+            const response = await fetch('/api/portfolios', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name, description })
+            })
+
+            if (!response.ok) {
+                const error = await response.json()
+                throw new Error(error.error || 'Failed to create portfolio')
+            }
+
+            const { portfolio } = await response.json()
+
+            set(state => ({
+                portfolios: [...state.portfolios, portfolio]
+            }))
+        } catch (error) {
+            console.error('Failed to create portfolio:', error)
+            throw error
+        }
+    },
+
+    deletePortfolio: async (portfolioId: string) => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession()
+            if (!session) throw new Error('Not authenticated')
+
+            const response = await fetch(`/api/portfolios/${portfolioId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`
+                }
+            })
+
+            if (!response.ok) {
+                const error = await response.json()
+                throw new Error(error.error || 'Failed to delete portfolio')
+            }
+
+            set(state => ({
+                portfolios: state.portfolios.filter(p => p.id !== portfolioId),
+                selectedPortfolioId: state.selectedPortfolioId === portfolioId
+                    ? state.portfolios.find(p => p.id !== portfolioId)?.id || null
+                    : state.selectedPortfolioId
+            }))
+        } catch (error) {
+            console.error('Failed to delete portfolio:', error)
+            throw error
+        }
+    },
+
+    setDefaultPortfolio: async (portfolioId: string) => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession()
+            if (!session) throw new Error('Not authenticated')
+
+            const response = await fetch(`/api/portfolios/${portfolioId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ is_default: true })
+            })
+
+            if (!response.ok) {
+                const error = await response.json()
+                throw new Error(error.error || 'Failed to set default portfolio')
+            }
+
+            const { portfolio } = await response.json()
+
+            set(state => ({
+                portfolios: state.portfolios.map(p =>
+                    p.id === portfolioId
+                        ? { ...p, is_default: true }
+                        : { ...p, is_default: false }
+                )
+            }))
+        } catch (error) {
+            console.error('Failed to set default portfolio:', error)
+            throw error
+        }
+    },
 
     refreshPortfolio: async () => {
         set({ isLoading: true, error: null })
@@ -42,11 +218,38 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
             // Small delay to ensure auth state is stable
             await new Promise(resolve => setTimeout(resolve, 100))
 
-            // First, check if we have manual assets - if so, we can show a portfolio even without API keys
-            const { data: manualAssets } = await supabase
-                .from('manual_assets')
-                .select('*')
-                .eq('user_id', session.user.id)
+            const selectedPortfolioId = get().selectedPortfolioId
+
+            // Fetch assets from portfolio_assets table for the selected portfolio
+            let manualAssets: any[] = []
+            if (selectedPortfolioId) {
+                const { data: portfolioAssets } = await supabase
+                    .from('portfolio_assets')
+                    .select('*')
+                    .eq('portfolio_id', selectedPortfolioId)
+
+                // Map portfolio_assets to match the manual_assets structure
+                manualAssets = (portfolioAssets || []).map(asset => ({
+                    id: asset.id,
+                    user_id: session.user.id,
+                    symbol: asset.symbol,
+                    name: asset.name,
+                    asset_type: asset.asset_type,
+                    quantity: asset.quantity,
+                    cost_basis: asset.cost_basis,
+                    notes: asset.notes,
+                    created_at: asset.created_at,
+                    updated_at: asset.updated_at
+                }))
+            } else {
+                // Fallback to old manual_assets table if no portfolio selected
+                const { data: oldManualAssets } = await supabase
+                    .from('manual_assets')
+                    .select('*')
+                    .eq('user_id', session.user.id)
+
+                manualAssets = oldManualAssets || []
+            }
 
             let portfolioData: any = null
             let hasApiData = false
@@ -341,12 +544,41 @@ export const usePortfolioStore = create<PortfolioStore>((set) => ({
                 throw new Error('Not authenticated')
             }
 
-            const { data, error } = await supabase
-                .from('manual_assets')
-                .select('*')
-                .eq('user_id', session.user.id)
+            const selectedPortfolioId = get().selectedPortfolioId
 
-            if (error) throw error
+            // Fetch assets from portfolio_assets table for the selected portfolio
+            let data: any[] = []
+            if (selectedPortfolioId) {
+                const { data: portfolioAssets, error } = await supabase
+                    .from('portfolio_assets')
+                    .select('*')
+                    .eq('portfolio_id', selectedPortfolioId)
+
+                if (error) throw error
+
+                // Map portfolio_assets to match the manual_assets structure
+                data = (portfolioAssets || []).map(asset => ({
+                    id: asset.id,
+                    user_id: session.user.id,
+                    symbol: asset.symbol,
+                    name: asset.name,
+                    asset_type: asset.asset_type,
+                    quantity: asset.quantity,
+                    cost_basis: asset.cost_basis,
+                    notes: asset.notes,
+                    created_at: asset.created_at,
+                    updated_at: asset.updated_at
+                }))
+            } else {
+                // Fallback to old manual_assets table if no portfolio selected
+                const { data: oldManualAssets, error } = await supabase
+                    .from('manual_assets')
+                    .select('*')
+                    .eq('user_id', session.user.id)
+
+                if (error) throw error
+                data = oldManualAssets || []
+            }
 
             set({ manualAssets: (data as ManualAsset[]) || [], isLoading: false })
         } catch (error) {

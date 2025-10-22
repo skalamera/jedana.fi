@@ -155,28 +155,28 @@ export default function PortfolioReviewPage() {
 
     return (
         <MainLayout>
-            <div className="max-w-7xl mx-auto space-y-8 p-6">
+            <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 p-3 md:p-6">
                 {/* Title */}
-                <div className="text-center py-8">
-                    <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                <div className="text-center py-4 md:py-8">
+                    <h1 className="text-2xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2 px-4">
                         {review.title}
                     </h1>
-                    <div className="w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-600 mx-auto rounded-full"></div>
+                    <div className="w-16 md:w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-600 mx-auto rounded-full"></div>
                 </div>
 
                 {/* Header Section - Risk Meter */}
                 <Card className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-0 shadow-lg">
-                    <CardContent className="p-8">
-                        <div className="flex items-center justify-center space-x-8">
+                    <CardContent className="p-4 md:p-8">
+                        <div className="flex items-center justify-center">
                             <div className="text-center">
-                                <div className={`inline-flex items-center px-6 py-3 rounded-full text-lg font-semibold mb-4 ${getRiskColor(review.riskMeter.level)}`}>
-                                    <Shield className="w-5 h-5 mr-2" />
+                                <div className={`inline-flex items-center px-4 md:px-6 py-2 md:py-3 rounded-full text-base md:text-lg font-semibold mb-3 md:mb-4 ${getRiskColor(review.riskMeter.level)}`}>
+                                    <Shield className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                                     {review.riskMeter.level} RISK
                                 </div>
-                                <div className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                                <div className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
                                     {review.riskMeter.score}/100
                                 </div>
-                                <p className="text-gray-600 dark:text-gray-300 max-w-md">
+                                <p className="text-sm md:text-base text-gray-600 dark:text-gray-300 max-w-md px-4">
                                     {review.riskMeter.description}
                                 </p>
                             </div>
@@ -184,30 +184,30 @@ export default function PortfolioReviewPage() {
                     </CardContent>
                 </Card>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                     {/* Section 1: Portfolio Value Forecast */}
                     <Card className="shadow-lg">
-                        <CardHeader className="pb-4">
-                            <CardTitle className="flex items-center space-x-2 text-xl">
-                                <TrendingUp className="w-5 h-5 text-blue-600" />
+                        <CardHeader className="pb-3 md:pb-4">
+                            <CardTitle className="flex items-center space-x-2 text-lg md:text-xl">
+                                <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
                                 <span>Portfolio Value Forecast</span>
                             </CardTitle>
                         </CardHeader>
-                        <CardContent>
-                            <div className="mb-6">
-                                <div className="flex items-center justify-between mb-4">
+                        <CardContent className="px-3 md:px-6">
+                            <div className="mb-4 md:mb-6">
+                                <div className="flex flex-col sm:flex-row items-center justify-around gap-4 sm:gap-2 mb-4">
                                     <div className="text-center">
-                                        <div className="text-sm text-gray-500 dark:text-gray-400">Current Value</div>
-                                        <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                                        <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-1">Current Value</div>
+                                        <div className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">
                                             ${review.portfolioForecast.currentValue.toLocaleString()}
                                         </div>
                                     </div>
                                     <div className="text-center">
-                                        <div className="text-sm text-gray-500 dark:text-gray-400">6-Month Forecast</div>
-                                        <div className="text-2xl font-bold text-green-600">
+                                        <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mb-1">6-Month Forecast</div>
+                                        <div className="text-xl md:text-2xl font-bold text-green-600">
                                             ${review.portfolioForecast.sixMonthForecast.toLocaleString()}
                                         </div>
-                                        <div className="text-sm text-gray-500">
+                                        <div className="text-xs md:text-sm text-gray-500 mt-1">
                                             {review.portfolioForecast.confidence}% confidence
                                         </div>
                                     </div>
@@ -248,21 +248,21 @@ export default function PortfolioReviewPage() {
 
                     {/* Section 2: Allocation Chart */}
                     <Card className="shadow-lg">
-                        <CardHeader className="pb-4">
-                            <CardTitle className="flex items-center space-x-2 text-xl">
-                                <Target className="w-5 h-5 text-purple-600" />
+                        <CardHeader className="pb-3 md:pb-4">
+                            <CardTitle className="flex items-center space-x-2 text-lg md:text-xl">
+                                <Target className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
                                 <span>Portfolio Allocation</span>
                             </CardTitle>
                         </CardHeader>
-                        <CardContent>
-                            <ResponsiveContainer width="100%" height={250}>
+                        <CardContent className="px-3 md:px-6">
+                            <ResponsiveContainer width="100%" height={200}>
                                 <PieChart>
                                     <Pie
                                         data={review.allocationChart.data}
                                         cx="50%"
                                         cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={100}
+                                        innerRadius={50}
+                                        outerRadius={80}
                                         paddingAngle={5}
                                         dataKey="value"
                                     >
@@ -283,14 +283,14 @@ export default function PortfolioReviewPage() {
                                     />
                                 </PieChart>
                             </ResponsiveContainer>
-                            <div className="grid grid-cols-2 gap-4 mt-4">
+                            <div className="grid grid-cols-2 gap-2 md:gap-4 mt-4">
                                 {review.allocationChart.data.map((item, index) => (
                                     <div key={index} className="flex items-center space-x-2">
                                         <div
-                                            className="w-3 h-3 rounded-full"
+                                            className="w-3 h-3 rounded-full flex-shrink-0"
                                             style={{ backgroundColor: item.color }}
                                         ></div>
-                                        <span className="text-sm text-gray-600 dark:text-gray-300">
+                                        <span className="text-xs md:text-sm text-gray-600 dark:text-gray-300 truncate">
                                             {item.name}: {item.percentage}%
                                         </span>
                                     </div>
@@ -302,33 +302,33 @@ export default function PortfolioReviewPage() {
 
                 {/* Section 3: Best/Worst Performers */}
                 <Card className="shadow-lg">
-                    <CardHeader className="pb-4">
-                        <CardTitle className="flex items-center space-x-2 text-xl">
-                            <Activity className="w-5 h-5 text-green-600" />
-                            <span>Performance Analysis (6 Months)</span>
+                    <CardHeader className="pb-3 md:pb-4">
+                        <CardTitle className="flex items-center space-x-2 text-lg md:text-xl">
+                            <Activity className="w-4 h-4 md:w-5 md:h-5 text-green-600" />
+                            <span>Top & Bottom Performers</span>
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <CardContent className="px-3 md:px-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                             {/* Best Performers */}
                             <div>
-                                <h3 className="text-lg font-semibold text-green-600 mb-4 flex items-center">
+                                <h3 className="text-base md:text-lg font-semibold text-green-600 mb-3 md:mb-4 flex items-center">
                                     <TrendingUp className="w-4 h-4 mr-2" />
                                     Best Performers
                                 </h3>
-                                <div className="space-y-3">
+                                <div className="space-y-2 md:space-y-3">
                                     {review.performanceChart.bestPerformers.map((performer, index) => (
-                                        <div key={index} className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                                            <div>
-                                                <div className="font-medium text-gray-900 dark:text-white">
+                                        <div key={index} className="flex items-center justify-between p-2 md:p-3 bg-green-50 dark:bg-green-900/20 rounded-lg gap-2">
+                                            <div className="min-w-0 flex-1">
+                                                <div className="font-medium text-sm md:text-base text-gray-900 dark:text-white truncate">
                                                     {performer.name} ({performer.symbol})
                                                 </div>
-                                                <div className="text-sm text-gray-600 dark:text-gray-300">
+                                                <div className="text-xs md:text-sm text-gray-600 dark:text-gray-300">
                                                     ${performer.value.toLocaleString()}
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <div className="text-lg font-bold text-green-600">
+                                            <div className="text-right flex-shrink-0">
+                                                <div className="text-base md:text-lg font-bold text-green-600">
                                                     +{performer.performance}%
                                                 </div>
                                             </div>
@@ -339,23 +339,23 @@ export default function PortfolioReviewPage() {
 
                             {/* Worst Performers */}
                             <div>
-                                <h3 className="text-lg font-semibold text-red-600 mb-4 flex items-center">
+                                <h3 className="text-base md:text-lg font-semibold text-red-600 mb-3 md:mb-4 flex items-center">
                                     <TrendingDown className="w-4 h-4 mr-2" />
                                     Worst Performers
                                 </h3>
-                                <div className="space-y-3">
+                                <div className="space-y-2 md:space-y-3">
                                     {review.performanceChart.worstPerformers.map((performer, index) => (
-                                        <div key={index} className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                                            <div>
-                                                <div className="font-medium text-gray-900 dark:text-white">
+                                        <div key={index} className="flex items-center justify-between p-2 md:p-3 bg-red-50 dark:bg-red-900/20 rounded-lg gap-2">
+                                            <div className="min-w-0 flex-1">
+                                                <div className="font-medium text-sm md:text-base text-gray-900 dark:text-white truncate">
                                                     {performer.name} ({performer.symbol})
                                                 </div>
-                                                <div className="text-sm text-gray-600 dark:text-gray-300">
+                                                <div className="text-xs md:text-sm text-gray-600 dark:text-gray-300">
                                                     ${performer.value.toLocaleString()}
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <div className="text-lg font-bold text-red-600">
+                                            <div className="text-right flex-shrink-0">
+                                                <div className="text-base md:text-lg font-bold text-red-600">
                                                     {performer.performance}%
                                                 </div>
                                             </div>
@@ -369,34 +369,32 @@ export default function PortfolioReviewPage() {
 
                 {/* Section 4: Asset Analysis */}
                 <Card className="shadow-lg">
-                    <CardHeader className="pb-4">
-                        <CardTitle className="flex items-center space-x-2 text-xl">
-                            <Zap className="w-5 h-5 text-blue-600" />
+                    <CardHeader className="pb-3 md:pb-4">
+                        <CardTitle className="flex items-center space-x-2 text-lg md:text-xl">
+                            <Zap className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
                             <span>Asset Analysis & Outlook</span>
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <CardContent className="px-3 md:px-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                             {review.assetAnalysis.map((asset, index) => (
-                                <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 bg-white dark:bg-gray-800">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                                                {asset.name} ({asset.symbol})
-                                            </h3>
-                                            <p className="text-sm text-gray-600 dark:text-gray-300">
-                                                Current: ${asset.currentPrice.toLocaleString()} • Allocation: {asset.allocation}%
-                                            </p>
-                                        </div>
+                                <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 md:p-6 bg-white dark:bg-gray-800">
+                                    <div className="mb-3 md:mb-4">
+                                        <h3 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                                            {asset.name} ({asset.symbol})
+                                        </h3>
+                                        <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300">
+                                            Current: ${asset.currentPrice.toLocaleString()} • Allocation: {asset.allocation}%
+                                        </p>
                                     </div>
-                                    <p className="text-sm text-gray-700 dark:text-gray-300 mb-4 leading-relaxed">
+                                    <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300 mb-3 md:mb-4 leading-relaxed">
                                         {asset.analysis}
                                     </p>
                                     <div className="space-y-2">
-                                        <div className="text-sm">
+                                        <div className="text-xs md:text-sm">
                                             <span className="font-medium text-green-600">Short-term:</span> {asset.outlook.shortTerm}
                                         </div>
-                                        <div className="text-sm">
+                                        <div className="text-xs md:text-sm">
                                             <span className="font-medium text-blue-600">Long-term:</span> {asset.outlook.longTerm}
                                         </div>
                                     </div>

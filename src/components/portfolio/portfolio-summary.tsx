@@ -19,9 +19,10 @@ interface ChartPoint {
 interface PortfolioSummaryProps {
     portfolio: Portfolio | null
     isLoading: boolean
+    portfolioId: string | null
 }
 
-export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps) {
+export function PortfolioSummary({ portfolio, isLoading, portfolioId }: PortfolioSummaryProps) {
     const router = useRouter()
     const { user } = useAuthStore()
     const [currentSpyPrice, setCurrentSpyPrice] = useState<number | null>(null)
@@ -40,13 +41,13 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
     // Load starting S&P 500 price and saved chart start date from Supabase on mount
     useEffect(() => {
         async function loadStartingPrice() {
-            if (!user?.id) return
+            if (!portfolioId) return
 
             try {
                 const { data, error } = await supabase
-                    .from('profiles')
+                    .from('portfolios')
                     .select('sp500_starting_price, portfolio_chart_start_date')
-                    .eq('id', user.id)
+                    .eq('id', portfolioId)
                     .single()
 
                 if (error) {
@@ -75,7 +76,7 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
         }
 
         loadStartingPrice()
-    }, [user?.id])
+    }, [portfolioId])
 
     // Fetch S&P 500 (^GSPC) current price using server-side API
     useEffect(() => {
@@ -111,16 +112,16 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                     console.log('S&P 500 Current Price:', spyData.currentPrice)
                     setCurrentSpyPrice(spyData.currentPrice)
 
-                    // Only set default if there's no value in DB AND user is logged in
-                    if (startingSpyPrice === null && user?.id && priceLoadedFromDB) {
+                    // Only set default if there's no value in DB AND portfolio is selected
+                    if (startingSpyPrice === null && portfolioId && priceLoadedFromDB) {
                         console.log('No starting price in DB, setting to current price:', spyData.currentPrice)
                         setStartingSpyPrice(spyData.currentPrice)
 
                         // Save to database
                         supabase
-                            .from('profiles')
+                            .from('portfolios')
                             .update({ sp500_starting_price: spyData.currentPrice })
-                            .eq('id', user.id)
+                            .eq('id', portfolioId)
                             .then(({ error }) => {
                                 if (error) {
                                     console.error('Error saving S&P 500 starting price:', error)
@@ -138,7 +139,7 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
         }
 
         fetchSPYPrice()
-    }, [priceLoadedFromDB, user?.id])
+    }, [priceLoadedFromDB, portfolioId, startingSpyPrice])
 
     // Fetch historical portfolio data
     useEffect(() => {
@@ -188,14 +189,14 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
 
     const handleSaveSpyPrice = async () => {
         const newPrice = parseFloat(tempSpyPrice)
-        if (!isNaN(newPrice) && newPrice > 0 && user?.id) {
+        if (!isNaN(newPrice) && newPrice > 0 && portfolioId) {
             setStartingSpyPrice(newPrice)
 
             // Save to database
             const { error } = await supabase
-                .from('profiles')
+                .from('portfolios')
                 .update({ sp500_starting_price: newPrice })
-                .eq('id', user.id)
+                .eq('id', portfolioId)
 
             if (error) {
                 console.error('Error saving S&P 500 starting price:', error)
@@ -362,12 +363,14 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                         </span>
                         <button
                             onClick={() => router.push('/portfolio-review')}
-                            className="inline-flex items-center gap-1.5 rounded-md bg-amber-500 text-white text-sm md:text-base font-medium px-4 py-2 hover:bg-amber-600 shadow"
+                            className="group relative inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white text-sm md:text-base font-semibold px-4 py-2 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/50 hover:scale-105 active:scale-95 overflow-hidden"
                             title="AI Portfolio Review"
                             aria-label="AI Portfolio Review"
                         >
-                            <Sparkles className="w-4 h-4" />
-                            <span className="hidden sm:inline">Review</span>
+                            {/* Shimmer effect - animates automatically and on hover */}
+                            <div className="absolute inset-0 -translate-x-full animate-[shimmer_3s_ease-in-out_infinite] group-hover:animate-none group-hover:translate-x-full group-hover:transition-transform group-hover:duration-1000 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+                            <span className="text-base md:text-lg">🔍</span>
+                            <span className="hidden sm:inline relative z-10">Review</span>
                         </button>
                     </div>
                 </div>
@@ -408,12 +411,12 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                                                 const newDate = new Date(e.target.value)
                                                 if (isNaN(newDate.getTime())) return
                                                 setChartStartDate(newDate)
-                                                if (user?.id) {
+                                                if (portfolioId) {
                                                     const isoDate = newDate.toISOString().split('T')[0]
                                                     const { error } = await supabase
-                                                        .from('profiles')
+                                                        .from('portfolios')
                                                         .update({ portfolio_chart_start_date: isoDate })
-                                                        .eq('id', user.id)
+                                                        .eq('id', portfolioId)
                                                     if (error) console.error('Error saving chart start date:', error)
                                                 }
                                             }}

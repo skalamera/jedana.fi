@@ -24,7 +24,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AIScreenerResponse, AssetAnalysis } from '@/types'
 import { MainLayout } from '@/components/layout/main-layout'
 import { supabase } from '@/lib/supabase'
@@ -121,20 +120,14 @@ export default function AIScreenerResultsPage() {
                     </CardContent>
                 </Card>
 
-                <Tabs defaultValue="assets" className="space-y-6">
-                    <TabsList className="grid w-full grid-cols-1">
-                        <TabsTrigger value="assets">Asset Analysis</TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="assets" className="space-y-6">
-                        {/* Navigation hint */}
-                        <div className="md:hidden flex items-center justify-center text-xs text-gray-500 dark:text-gray-400 mb-4">
-                            <ChevronLeft className="w-3 h-3 mr-1" /> Swipe to navigate <ChevronRight className="w-3 h-3 ml-1" />
-                        </div>
-                        {/* Asset Carousel */}
-                        <Carousel assets={result.assets} aiMetadata={result.aiMetadata} />
-                    </TabsContent>
-                </Tabs>
+                <div className="space-y-6">
+                    {/* Navigation hint */}
+                    <div className="md:hidden flex items-center justify-center text-xs text-gray-500 dark:text-gray-400 mb-4">
+                        <ChevronLeft className="w-3 h-3 mr-1" /> Swipe to navigate <ChevronRight className="w-3 h-3 ml-1" />
+                    </div>
+                    {/* Asset Carousel */}
+                    <Carousel assets={result.assets} aiMetadata={result.aiMetadata} />
+                </div>
 
                 {/* Disclaimer */}
                 <Card className="mt-8 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
@@ -438,6 +431,9 @@ async function saveAnalysis(asset: AssetAnalysis) {
 
 
 function CoverCard({ assets, aiMetadata }: { assets: AssetAnalysis[]; aiMetadata?: { usedWebSearch: boolean; webSearchSources?: any[] } }) {
+    const [isCreatingPortfolio, setIsCreatingPortfolio] = useState(false)
+    const [portfolioCreated, setPortfolioCreated] = useState(false)
+
     const getOverviewDescription = () => {
         const totalAssets = assets.length
         const positiveForecasts = assets.filter(asset => {
@@ -456,75 +452,187 @@ function CoverCard({ assets, aiMetadata }: { assets: AssetAnalysis[]; aiMetadata
         }
     }
 
+    const handleTrackPortfolio = async () => {
+        setIsCreatingPortfolio(true)
+        try {
+            // Get the current session for auth token
+            const { data: { session } } = await supabase.auth.getSession()
+            if (!session) {
+                alert('Please sign in to create a portfolio.')
+                return
+            }
+
+            const authToken = session.access_token
+
+            // Get current date for portfolio name
+            const today = new Date()
+            const dateStr = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+            // Create portfolio name based on asset types
+            const assetTypes = [...new Set(assets.map(a => a.assetType))]
+            let portfolioType = 'AI'
+            if (assetTypes.length === 1) {
+                portfolioType = assetTypes[0] === 'crypto' ? 'Crypto' : 'Stock'
+            }
+
+            const portfolioName = `${portfolioType} AI Pick - ${dateStr}`
+            const portfolioDescription = `AI-recommended portfolio with ${assets.length} assets. Track performance vs S&P 500.`
+
+            // Create the portfolio
+            const createResponse = await fetch('/api/portfolios', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({
+                    name: portfolioName,
+                    description: portfolioDescription,
+                })
+            })
+
+            if (!createResponse.ok) {
+                throw new Error('Failed to create portfolio')
+            }
+
+            const { portfolio } = await createResponse.json()
+
+            // Add each asset to the portfolio
+            for (const asset of assets) {
+                const assetData = {
+                    symbol: asset.symbol,
+                    name: asset.name,
+                    asset_type: asset.assetType === 'crypto' ? 'crypto' : 'equity',
+                    quantity: 1,
+                    cost_basis: asset.currentPrice,
+                    notes: `AI recommended on ${dateStr}. 6M target: $${asset.priceForecast.projectedPrice.toFixed(2)}`
+                }
+
+                await fetch(`/api/portfolios/${portfolio.id}/assets`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(assetData)
+                })
+            }
+
+            setPortfolioCreated(true)
+
+            // Redirect to portfolio page after a brief delay
+            setTimeout(() => {
+                window.location.href = '/'
+            }, 2000)
+        } catch (error) {
+            console.error('Failed to create portfolio:', error)
+            alert('Failed to create portfolio. Please try again.')
+        } finally {
+            setIsCreatingPortfolio(false)
+        }
+    }
+
     return (
         <Card className="w-full max-w-4xl mx-auto bg-gradient-to-br from-indigo-50 via-white to-blue-50 dark:from-gray-800 dark:via-gray-900 dark:to-indigo-950 border-2 border-indigo-200 dark:border-indigo-700 shadow-2xl">
-            <CardHeader className="text-center pb-6">
-                <div className="flex items-center justify-center gap-3 mb-4">
-                    <div className="p-3 bg-indigo-600 rounded-full">
-                        <BarChart3 className="w-8 h-8 text-white" />
+            <CardHeader className="text-center pb-3 md:pb-6 px-3 md:px-6">
+                {/* Track vs S&P Button */}
+                <div className="flex justify-center md:justify-end mb-2">
+                    <button
+                        onClick={handleTrackPortfolio}
+                        disabled={isCreatingPortfolio || portfolioCreated}
+                        className={`group relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs transition-all duration-300 ${portfolioCreated
+                            ? 'bg-emerald-500 text-white cursor-default'
+                            : isCreatingPortfolio
+                                ? 'bg-indigo-400 text-white cursor-wait'
+                                : 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white hover:shadow-lg hover:shadow-indigo-500/50 hover:scale-105 active:scale-95'
+                            }`}
+                    >
+                        {portfolioCreated ? (
+                            <>
+                                <CheckCircle className="w-3.5 h-3.5" />
+                                <span>Created!</span>
+                            </>
+                        ) : isCreatingPortfolio ? (
+                            <>
+                                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                <span>Creating...</span>
+                            </>
+                        ) : (
+                            <>
+                                <Activity className="w-3.5 h-3.5 group-hover:animate-pulse" />
+                                <span>Track vs S&P</span>
+                                <ArrowUpRight className="w-3 h-3 opacity-70 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                            </>
+                        )}
+                    </button>
+                </div>
+
+                <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-3 mb-3 md:mb-4">
+                    <div className="p-2 md:p-3 bg-indigo-600 rounded-full">
+                        <BarChart3 className="w-6 h-6 md:w-8 md:h-8 text-white" />
                     </div>
                     <div>
-                        <CardTitle className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">
+                        <CardTitle className="text-xl md:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">
                             AI Investment Analysis
                         </CardTitle>
-                        <CardDescription className="text-base md:text-lg text-gray-600 dark:text-gray-300 mt-1">
+                        <CardDescription className="text-xs md:text-lg text-gray-600 dark:text-gray-300 mt-1 px-2 md:px-0">
                             {getOverviewDescription()}
                         </CardDescription>
                     </div>
                 </div>
                 {aiMetadata?.usedWebSearch && (
-                    <Badge variant="outline" className="mx-auto bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800">
+                    <Badge variant="outline" className="mx-auto text-xs bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800">
                         🔍 GPT-4o Analysis
                     </Badge>
                 )}
             </CardHeader>
-            <CardContent className="px-4 md:px-8">
-                <div className="space-y-4">
-                    <h3 className="text-lg md:text-xl font-semibold text-center text-gray-800 dark:text-gray-200 mb-6">
+            <CardContent className="px-2 md:px-8">
+                <div className="space-y-3 md:space-y-4">
+                    <h3 className="text-base md:text-xl font-semibold text-center text-gray-800 dark:text-gray-200 mb-3 md:mb-6">
                         Recommended Portfolio ({assets.length} Assets)
                     </h3>
-                    <div className="grid gap-3 md:gap-4">
+                    <div className="grid gap-2 md:gap-4">
                         {assets.map((asset, index) => {
                             const priceChange = asset.priceForecast.projectedPrice - asset.currentPrice
                             const priceChangePercent = (priceChange / asset.currentPrice) * 100
                             const isPositive = priceChangePercent > 0
 
                             return (
-                                <div key={asset.symbol} className="flex items-center justify-between p-4 bg-white/60 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
-                                    <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
-                                        <div className="flex items-center justify-center w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-lg text-white font-bold text-sm md:text-base">
+                                <div key={asset.symbol} className="flex flex-col md:flex-row md:items-center gap-2 md:gap-0 md:justify-between p-2 md:p-4 bg-white/60 dark:bg-gray-800/60 rounded-lg md:rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
+                                    <div className="flex items-start md:items-center gap-2 md:gap-4 flex-1 min-w-0">
+                                        <div className="flex items-center justify-center w-7 h-7 md:w-10 md:h-10 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-lg text-white font-bold text-xs md:text-base flex-shrink-0">
                                             {index + 1}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="font-bold text-gray-900 dark:text-white text-sm md:text-base">
+                                            <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
+                                                <span className="font-bold text-gray-900 dark:text-white text-xs md:text-base">
                                                     {asset.symbol}
                                                 </span>
-                                                <span className="text-gray-600 dark:text-gray-400 text-sm md:text-base truncate">
+                                                <span className="text-gray-600 dark:text-gray-400 text-xs md:text-base truncate max-w-[120px] md:max-w-none">
                                                     {asset.name}
                                                 </span>
-                                                <span className="text-xs md:text-sm font-medium text-gray-500 dark:text-gray-500">
+                                            </div>
+                                            <div className="flex items-center gap-2 md:gap-4 mt-0.5 md:mt-1 flex-wrap">
+                                                <span className="text-[10px] md:text-sm font-medium text-gray-500 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
                                                     ${asset.currentPrice.toLocaleString()}
                                                 </span>
-                                            </div>
-                                            <div className="flex items-center gap-4 mt-1">
-                                                <div className="flex items-center gap-1">
-                                                    <Target className="w-3 h-3 md:w-4 md:h-4 text-indigo-600 dark:text-indigo-400" />
-                                                    <span className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                <div className="flex items-center gap-0.5 md:gap-1">
+                                                    <Target className="w-2.5 h-2.5 md:w-4 md:h-4 text-indigo-600 dark:text-indigo-400" />
+                                                    <span className="text-[10px] md:text-sm font-medium text-gray-700 dark:text-gray-300 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded">
                                                         6M: ${asset.priceForecast.projectedPrice.toLocaleString()}
                                                     </span>
                                                 </div>
-                                                <div className={`flex items-center gap-1 ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                                                    <TrendingUp className={`w-3 h-3 md:w-4 md:h-4 ${!isPositive ? 'rotate-180' : ''}`} />
-                                                    <span className="text-xs md:text-sm font-semibold">
+                                                <div className={`flex items-center gap-0.5 md:gap-1 ${isPositive ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'bg-rose-50 dark:bg-rose-900/30'} px-1.5 py-0.5 rounded`}>
+                                                    <TrendingUp className={`w-2.5 h-2.5 md:w-4 md:h-4 ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400 rotate-180'}`} />
+                                                    <span className={`text-[10px] md:text-sm font-semibold ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                                                         {isPositive ? '+' : ''}{priceChangePercent.toFixed(1)}%
                                                     </span>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <div className={`text-sm md:text-base font-bold ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                    <div className="text-left md:text-right ml-9 md:ml-0">
+                                        <div className={`text-xs md:text-base font-bold ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                                             {isPositive ? '↗' : '↘'} {isPositive ? 'Bullish' : 'Bearish'}
                                         </div>
                                     </div>
@@ -533,12 +641,12 @@ function CoverCard({ assets, aiMetadata }: { assets: AssetAnalysis[]; aiMetadata
                         })}
                     </div>
                 </div>
-                <div className="mt-8 text-center">
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                <div className="mt-4 md:mt-8 text-center">
+                    <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mb-2">
                         Swipe or use arrow keys to explore detailed analysis for each asset
                     </p>
                     <div className="flex items-center justify-center gap-2">
-                        <ChevronRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400 animate-pulse" />
+                        <ChevronRight className="w-3 h-3 md:w-4 md:h-4 text-indigo-600 dark:text-indigo-400 animate-pulse" />
                         <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
                             Detailed Analysis →
                         </span>

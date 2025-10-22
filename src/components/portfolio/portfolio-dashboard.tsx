@@ -8,7 +8,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react'
 import type { PortfolioAsset } from '@/types'
 
 export function PortfolioDashboard() {
-    const { portfolio, isLoading, error, refreshPortfolio } = usePortfolioStore()
+    const { portfolio, isLoading, error, refreshPortfolio, selectedPortfolioId } = usePortfolioStore()
 
     // State for tracking expanded groups
     const [expandedGroups, setExpandedGroups] = useState({
@@ -176,7 +176,7 @@ export function PortfolioDashboard() {
     return (
         <div className="space-y-6">
             {/* Portfolio Summary */}
-            <PortfolioSummary portfolio={portfolio} isLoading={isLoading} />
+            <PortfolioSummary portfolio={portfolio} isLoading={isLoading} portfolioId={selectedPortfolioId} />
 
             {/* Asset Sections */}
             <div className="space-y-4 md:space-y-6">

@@ -3,6 +3,7 @@
 import { Suspense } from 'react'
 import { MainLayout } from '@/components/layout/main-layout'
 import { PortfolioDashboard } from '@/components/portfolio/portfolio-dashboard'
+import { PortfolioSelector } from '@/components/portfolio/portfolio-selector'
 import { useAuthStore } from '@/stores/auth-store'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
@@ -53,11 +54,16 @@ export default function HomePage() {
   return (
     <MainLayout>
       <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Portfolio Overview</h2>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Track your cryptocurrency, stocks, and ETF investments and performance
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Portfolio Overview</h2>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+              Track your cryptocurrency, stocks, and ETF investments and performance
+            </p>
+          </div>
+          <div className="flex-shrink-0">
+            <PortfolioSelector />
+          </div>
         </div>
 
         <Suspense fallback={<PortfolioSkeleton />}>
