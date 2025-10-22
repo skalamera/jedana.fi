@@ -156,43 +156,43 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
     // Generate historical chart data (mock data for now - TODO: implement real historical tracking)
     const chartData = useMemo(() => {
         if (!portfolio) return []
-        
+
         const currentValue = portfolio.totalValue
         const dailyChange = portfolio.totalDailyPnLPercentage / 100
-        
+
         // Generate 30 days of data with realistic variation
         const data = []
         const daysToShow = 30
-        
+
         for (let i = daysToShow - 1; i >= 0; i--) {
             // Create natural-looking variation (± 0.5% to 2% per day)
             const randomVariation = (Math.random() - 0.5) * 0.02
             const daysSinceStart = daysToShow - i
             const cumulativeChange = randomVariation * daysSinceStart
             const value = currentValue / (1 + dailyChange) * (1 + cumulativeChange)
-            
+
             data.push({
                 day: i,
                 value: Math.max(value, 0)
             })
         }
-        
+
         // Add current day
         data.push({
             day: 0,
             value: currentValue
         })
-        
+
         return data
     }, [portfolio])
 
     // Calculate trend line using linear regression
     const trendLineData = useMemo(() => {
         if (chartData.length === 0) return []
-        
+
         const n = chartData.length
         let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0
-        
+
         chartData.forEach((point, index) => {
             const x = index
             const y = point.value
@@ -201,10 +201,10 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
             sumXY += x * y
             sumXX += x * x
         })
-        
+
         const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
         const intercept = (sumY - slope * sumX) / n
-        
+
         return chartData.map((_, index) => ({
             day: chartData[index].day,
             trend: slope * index + intercept
@@ -293,15 +293,18 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                                     </dd>
                                 </div>
                             </div>
-                            
+
                             {/* 30-Day Chart - Desktop Only */}
                             <div className="hidden lg:block mt-3 bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
                                 <div className="text-[10px] font-medium text-white/80 uppercase tracking-wide mb-2">
                                     Last 30 Days
                                 </div>
-                                <ResponsiveContainer width="100%" height={80}>
-                                    <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                                        <YAxis domain={['auto', 'auto']} hide />
+                                <ResponsiveContainer width="100%" height={100}>
+                                    <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+                                        <YAxis 
+                                            domain={['dataMin - dataMin * 0.05', 'dataMax + dataMax * 0.05']} 
+                                            hide 
+                                        />
                                         {/* Trend Line */}
                                         <Line
                                             data={trendLineData}
@@ -317,7 +320,7 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                                         <Line
                                             type="monotone"
                                             dataKey="value"
-                                            stroke="#f87171"
+                                            stroke="#ffffff"
                                             strokeWidth={2.5}
                                             dot={false}
                                             isAnimationActive={true}
