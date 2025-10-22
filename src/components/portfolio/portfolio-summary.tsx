@@ -301,9 +301,9 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                                 </div>
                                 <ResponsiveContainer width="100%" height={110}>
                                     <LineChart data={chartData} margin={{ top: 15, right: 15, left: 15, bottom: 15 }}>
-                                        <YAxis 
-                                            domain={['dataMin - dataMin * 0.1', 'dataMax + dataMax * 0.1']} 
-                                            hide 
+                                        <YAxis
+                                            domain={['dataMin - dataMin * 0.1', 'dataMax + dataMax * 0.1']}
+                                            hide
                                         />
                                         {/* Trend Line */}
                                         <Line
