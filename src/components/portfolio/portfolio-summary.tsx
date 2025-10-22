@@ -1,9 +1,10 @@
 import { TrendingUp, TrendingDown, DollarSign, Sparkles, BarChart3, Edit2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import type { Portfolio } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth-store'
+import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts'
 
 interface PortfolioSummaryProps {
     portfolio: Portfolio | null
@@ -79,7 +80,7 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                 const data = await response.json()
                 console.log('API Response:', data)
                 console.log('Available price keys:', Object.keys(data.prices || {}))
-                
+
                 // Try different possible keys for the S&P 500 data
                 const spyData = data.prices?.['^GSPC'] || data.prices?.['%5EGSPC'] || data.prices?.['^INX'] || data.prices?.['%5EINX'] || data.prices?.[Object.keys(data.prices || {})[0]]
                 console.log('S&P 500 Data:', spyData)
@@ -92,7 +93,7 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                     if (startingSpyPrice === null && user?.id && priceLoadedFromDB) {
                         console.log('No starting price in DB, setting to current price:', spyData.currentPrice)
                         setStartingSpyPrice(spyData.currentPrice)
-                        
+
                         // Save to database
                         supabase
                             .from('profiles')
@@ -151,6 +152,64 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
     const spyTotalPerformance = currentSpyPrice && startingSpyPrice
         ? ((currentSpyPrice - startingSpyPrice) / startingSpyPrice) * 100
         : null
+
+    // Generate historical chart data (mock data for now - TODO: implement real historical tracking)
+    const chartData = useMemo(() => {
+        if (!portfolio) return []
+        
+        const currentValue = portfolio.totalValue
+        const dailyChange = portfolio.totalDailyPnLPercentage / 100
+        
+        // Generate 30 days of data with realistic variation
+        const data = []
+        const daysToShow = 30
+        
+        for (let i = daysToShow - 1; i >= 0; i--) {
+            // Create natural-looking variation (± 0.5% to 2% per day)
+            const randomVariation = (Math.random() - 0.5) * 0.02
+            const daysSinceStart = daysToShow - i
+            const cumulativeChange = randomVariation * daysSinceStart
+            const value = currentValue / (1 + dailyChange) * (1 + cumulativeChange)
+            
+            data.push({
+                day: i,
+                value: Math.max(value, 0)
+            })
+        }
+        
+        // Add current day
+        data.push({
+            day: 0,
+            value: currentValue
+        })
+        
+        return data
+    }, [portfolio])
+
+    // Calculate trend line using linear regression
+    const trendLineData = useMemo(() => {
+        if (chartData.length === 0) return []
+        
+        const n = chartData.length
+        let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0
+        
+        chartData.forEach((point, index) => {
+            const x = index
+            const y = point.value
+            sumX += x
+            sumY += y
+            sumXY += x * y
+            sumXX += x * x
+        })
+        
+        const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
+        const intercept = (sumY - slope * sumX) / n
+        
+        return chartData.map((_, index) => ({
+            day: chartData[index].day,
+            trend: slope * index + intercept
+        }))
+    }, [chartData])
 
     if (isLoading || !portfolio) {
         return (
@@ -219,7 +278,7 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
                         {/* Total Portfolio Value */}
                         <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 dark:from-indigo-700 dark:to-indigo-800 rounded-xl p-4 md:p-6 shadow-lg border border-indigo-500/30">
-                            <div className="flex items-center">
+                            <div className="flex items-center mb-4">
                                 <div className="flex-shrink-0">
                                     <div className="w-10 h-10 md:w-12 md:h-12 bg-white/10 backdrop-blur-sm rounded-lg flex items-center justify-center">
                                         <DollarSign className="h-5 w-5 md:h-6 md:w-6 text-white" />
@@ -233,6 +292,38 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                                         {formatCurrency(portfolio.totalValue)}
                                     </dd>
                                 </div>
+                            </div>
+                            
+                            {/* 30-Day Chart - Desktop Only */}
+                            <div className="hidden lg:block mt-3 bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
+                                <div className="text-[10px] font-medium text-white/80 uppercase tracking-wide mb-2">
+                                    Last 30 Days
+                                </div>
+                                <ResponsiveContainer width="100%" height={80}>
+                                    <LineChart data={chartData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                        <YAxis domain={['auto', 'auto']} hide />
+                                        {/* Trend Line */}
+                                        <Line
+                                            data={trendLineData}
+                                            type="monotone"
+                                            dataKey="trend"
+                                            stroke="#34d399"
+                                            strokeWidth={2}
+                                            dot={false}
+                                            strokeDasharray="5 5"
+                                            isAnimationActive={false}
+                                        />
+                                        {/* Actual Value Line */}
+                                        <Line
+                                            type="monotone"
+                                            dataKey="value"
+                                            stroke="#f87171"
+                                            strokeWidth={2.5}
+                                            dot={false}
+                                            isAnimationActive={true}
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
                             </div>
                         </div>
 
