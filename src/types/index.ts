@@ -223,6 +223,10 @@ export interface AIScreenerResponse {
         keyTrends: string[]
         risks: string[]
     }
+    aiMetadata?: {
+        usedWebSearch: boolean
+        webSearchSources?: any[]
+    }
 }
 
 export interface AIScreenerForm {

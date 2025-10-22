@@ -132,7 +132,7 @@ export default function AIScreenerResultsPage() {
                             <ChevronLeft className="w-3 h-3 mr-1" /> Swipe to navigate <ChevronRight className="w-3 h-3 ml-1" />
                         </div>
                         {/* Asset Carousel */}
-                        <Carousel assets={result.assets} />
+                        <Carousel assets={result.assets} aiMetadata={result.aiMetadata} />
                     </TabsContent>
                 </Tabs>
 
@@ -149,7 +149,7 @@ export default function AIScreenerResultsPage() {
     )
 }
 
-function AssetCard({ asset }: { asset: AssetAnalysis }) {
+function AssetCard({ asset, aiMetadata }: { asset: AssetAnalysis; aiMetadata?: { usedWebSearch: boolean; webSearchSources?: any[] } }) {
     const getRecommendationColor = (rec: string) => {
         switch (rec) {
             case 'strong_buy': return 'bg-green-500'
@@ -203,6 +203,19 @@ function AssetCard({ asset }: { asset: AssetAnalysis }) {
                         <CardDescription className="text-base font-medium text-gray-600 dark:text-gray-300">
                             {asset.name}
                         </CardDescription>
+                        {/* Web Search Indicator */}
+                        {aiMetadata?.usedWebSearch && (
+                            <div className="mt-1 flex items-center gap-1">
+                                <Badge variant="outline" className="text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                                    🔍 GPT-4o Analysis
+                                </Badge>
+                                {aiMetadata.webSearchSources && aiMetadata.webSearchSources.length > 0 && (
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                        ({aiMetadata.webSearchSources.length} sources)
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
                     <div className="text-right">
                         <div className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -424,15 +437,130 @@ async function saveAnalysis(asset: AssetAnalysis) {
 }
 
 
-function Carousel({ assets }: { assets: AssetAnalysis[] }) {
+function CoverCard({ assets, aiMetadata }: { assets: AssetAnalysis[]; aiMetadata?: { usedWebSearch: boolean; webSearchSources?: any[] } }) {
+    const getOverviewDescription = () => {
+        const totalAssets = assets.length
+        const positiveForecasts = assets.filter(asset => {
+            const priceChange = asset.priceForecast.projectedPrice - asset.currentPrice
+            return priceChange > 0
+        }).length
+
+        if (totalAssets <= 2) {
+            return `A curated selection of high-quality investments chosen for their strong fundamentals and growth potential.`
+        } else if (positiveForecasts >= totalAssets * 0.7) {
+            return `An optimistic portfolio of ${totalAssets} assets with strong bullish momentum and growth prospects.`
+        } else if (positiveForecasts >= totalAssets * 0.5) {
+            return `A balanced portfolio of ${totalAssets} assets with mixed momentum, offering diversified risk-adjusted returns.`
+        } else {
+            return `A conservative portfolio of ${totalAssets} assets focused on stability and long-term value creation.`
+        }
+    }
+
+    return (
+        <Card className="w-full max-w-4xl mx-auto bg-gradient-to-br from-indigo-50 via-white to-blue-50 dark:from-gray-800 dark:via-gray-900 dark:to-indigo-950 border-2 border-indigo-200 dark:border-indigo-700 shadow-2xl">
+            <CardHeader className="text-center pb-6">
+                <div className="flex items-center justify-center gap-3 mb-4">
+                    <div className="p-3 bg-indigo-600 rounded-full">
+                        <BarChart3 className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                        <CardTitle className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">
+                            AI Investment Analysis
+                        </CardTitle>
+                        <CardDescription className="text-base md:text-lg text-gray-600 dark:text-gray-300 mt-1">
+                            {getOverviewDescription()}
+                        </CardDescription>
+                    </div>
+                </div>
+                {aiMetadata?.usedWebSearch && (
+                    <Badge variant="outline" className="mx-auto bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800">
+                        🔍 GPT-4o Analysis
+                    </Badge>
+                )}
+            </CardHeader>
+            <CardContent className="px-4 md:px-8">
+                <div className="space-y-4">
+                    <h3 className="text-lg md:text-xl font-semibold text-center text-gray-800 dark:text-gray-200 mb-6">
+                        Recommended Portfolio ({assets.length} Assets)
+                    </h3>
+                    <div className="grid gap-3 md:gap-4">
+                        {assets.map((asset, index) => {
+                            const priceChange = asset.priceForecast.projectedPrice - asset.currentPrice
+                            const priceChangePercent = (priceChange / asset.currentPrice) * 100
+                            const isPositive = priceChangePercent > 0
+
+                            return (
+                                <div key={asset.symbol} className="flex items-center justify-between p-4 bg-white/60 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+                                        <div className="flex items-center justify-center w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-lg text-white font-bold text-sm md:text-base">
+                                            {index + 1}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-bold text-gray-900 dark:text-white text-sm md:text-base">
+                                                    {asset.symbol}
+                                                </span>
+                                                <span className="text-gray-600 dark:text-gray-400 text-sm md:text-base truncate">
+                                                    {asset.name}
+                                                </span>
+                                                <span className="text-xs md:text-sm font-medium text-gray-500 dark:text-gray-500">
+                                                    ${asset.currentPrice.toLocaleString()}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-4 mt-1">
+                                                <div className="flex items-center gap-1">
+                                                    <Target className="w-3 h-3 md:w-4 md:h-4 text-indigo-600 dark:text-indigo-400" />
+                                                    <span className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                        6M: ${asset.priceForecast.projectedPrice.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                                <div className={`flex items-center gap-1 ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                                    <TrendingUp className={`w-3 h-3 md:w-4 md:h-4 ${!isPositive ? 'rotate-180' : ''}`} />
+                                                    <span className="text-xs md:text-sm font-semibold">
+                                                        {isPositive ? '+' : ''}{priceChangePercent.toFixed(1)}%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className={`text-sm md:text-base font-bold ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                            {isPositive ? '↗' : '↘'} {isPositive ? 'Bullish' : 'Bearish'}
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+                <div className="mt-8 text-center">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                        Swipe or use arrow keys to explore detailed analysis for each asset
+                    </p>
+                    <div className="flex items-center justify-center gap-2">
+                        <ChevronRight className="w-4 h-4 text-indigo-600 dark:text-indigo-400 animate-pulse" />
+                        <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                            Detailed Analysis →
+                        </span>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
+function Carousel({ assets, aiMetadata }: { assets: AssetAnalysis[]; aiMetadata?: { usedWebSearch: boolean; webSearchSources?: any[] } }) {
     const [currentIndex, setCurrentIndex] = useState(0)
 
+    // Total items: cover card + assets
+    const totalItems = assets.length + 1
+
     const goToPrevious = () => {
-        setCurrentIndex((prev) => (prev > 0 ? prev - 1 : assets.length - 1))
+        setCurrentIndex((prev) => (prev > 0 ? prev - 1 : totalItems - 1))
     }
 
     const goToNext = () => {
-        setCurrentIndex((prev) => (prev < assets.length - 1 ? prev + 1 : 0))
+        setCurrentIndex((prev) => (prev < totalItems - 1 ? prev + 1 : 0))
     }
 
     const goToIndex = (index: number) => {
@@ -529,35 +657,44 @@ function Carousel({ assets }: { assets: AssetAnalysis[] }) {
                 )}
 
                 <div className="max-w-4xl mx-auto">
-                    <AssetCard asset={assets[currentIndex]} />
+                    {currentIndex === 0 ? (
+                        <CoverCard assets={assets} aiMetadata={aiMetadata} />
+                    ) : (
+                        <AssetCard asset={assets[currentIndex - 1]} aiMetadata={aiMetadata} />
+                    )}
                 </div>
             </div>
 
             {/* Mobile: Swipeable Carousel */}
             <div className="md:hidden overflow-x-auto pb-3 -mx-4">
                 <div className="flex gap-4 px-4 snap-x snap-mandatory scroll-smooth">
+                    {/* Cover Card */}
+                    <div className="snap-start shrink-0 w-[88vw]">
+                        <CoverCard assets={assets} aiMetadata={aiMetadata} />
+                    </div>
+                    {/* Asset Cards */}
                     {assets.map((asset, index) => (
                         <div
                             key={`${asset.symbol}-${index}`}
                             className="snap-start shrink-0 w-[88vw]"
                         >
-                            <AssetCard asset={asset} />
+                            <AssetCard asset={asset} aiMetadata={aiMetadata} />
                         </div>
                     ))}
                 </div>
             </div>
 
             {/* Navigation Dots */}
-            {assets.length > 1 && (
+            {totalItems > 1 && (
                 <div className="flex items-center justify-center gap-2 mt-6">
                     {/* Current position indicator */}
                     <span className="text-sm font-medium text-gray-600 dark:text-gray-400 mr-2">
-                        {currentIndex + 1} / {assets.length}
+                        {currentIndex + 1} / {totalItems}
                     </span>
 
                     {/* Dot indicators */}
                     <div className="flex gap-2">
-                        {assets.map((_, index) => (
+                        {Array.from({ length: totalItems }, (_, index) => (
                             <button
                                 key={index}
                                 onClick={() => goToIndex(index)}
@@ -565,7 +702,7 @@ function Carousel({ assets }: { assets: AssetAnalysis[] }) {
                                     ? 'w-8 h-2 bg-blue-600 dark:bg-blue-400'
                                     : 'w-2 h-2 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'
                                     }`}
-                                aria-label={`Go to asset ${index + 1}`}
+                                aria-label={index === 0 ? 'Go to portfolio overview' : `Go to asset ${index}`}
                             />
                         ))}
                     </div>
