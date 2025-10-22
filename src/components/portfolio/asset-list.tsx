@@ -5,11 +5,17 @@ import { useState } from 'react'
 
 interface AssetListProps {
     assets: PortfolioAsset[]
-    group?: 'crypto' | 'stock' | 'manual'
+    group?: 'cash' | 'crypto' | 'stock' | 'manual'
 }
 
 export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
     const { updateAssetCostBasis, deleteManualAsset, portfolio } = usePortfolioStore()
+
+    // Helper function to check if asset is cash/stablecoin
+    const isCash = (asset: PortfolioAsset) => {
+        const cashAssets = new Set(['ZUSD', 'USD', 'USDT', 'USDC', 'DAI', 'BUSD'])
+        return cashAssets.has(asset.symbol.replace('.EQ', ''))
+    }
 
     // Helper function to format display symbol
     const getDisplaySymbol = (asset: PortfolioAsset) => {
@@ -171,35 +177,40 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                                 className="w-4 h-4"
                                             />
                                         )}
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${asset.symbol.endsWith('.EQ') && !isETF(asset)
-                                            ? 'text-purple-800 dark:text-purple-300'
-                                            : asset.symbol.endsWith('.EQ') && isETF(asset)
-                                                ? 'text-indigo-800 dark:text-indigo-300'
-                                                : asset.source === 'kraken'
-                                                    ? 'text-blue-800 dark:text-blue-300'
-                                                    : asset.asset_type === 'crypto'
-                                                        ? 'text-teal-800 dark:text-teal-300'
-                                                        : (asset.asset_type === 'equity' || asset.asset_type === 'manual') && isETF(asset)
-                                                            ? 'text-indigo-800 dark:text-indigo-300'
-                                                            : asset.asset_type === 'equity'
-                                                                ? 'text-orange-800 dark:text-orange-300'
-                                                                : asset.asset_type === 'manual' && isETF(asset)
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                            isCash(asset)
+                                                ? 'text-emerald-800 dark:text-emerald-300'
+                                                : asset.symbol.endsWith('.EQ') && !isETF(asset)
+                                                    ? 'text-purple-800 dark:text-purple-300'
+                                                    : asset.symbol.endsWith('.EQ') && isETF(asset)
+                                                        ? 'text-indigo-800 dark:text-indigo-300'
+                                                        : asset.source === 'kraken'
+                                                            ? 'text-blue-800 dark:text-blue-300'
+                                                            : asset.asset_type === 'crypto'
+                                                                ? 'text-teal-800 dark:text-teal-300'
+                                                                : (asset.asset_type === 'equity' || asset.asset_type === 'manual') && isETF(asset)
                                                                     ? 'text-indigo-800 dark:text-indigo-300'
-                                                                    : 'text-gray-800 dark:text-gray-300'
+                                                                    : asset.asset_type === 'equity'
+                                                                        ? 'text-orange-800 dark:text-orange-300'
+                                                                        : asset.asset_type === 'manual' && isETF(asset)
+                                                                            ? 'text-indigo-800 dark:text-indigo-300'
+                                                                            : 'text-gray-800 dark:text-gray-300'
                                             }`}>
-                                            {asset.symbol.endsWith('.EQ')
-                                                ? (isETF(asset) ? 'ETF' : 'Stock')
-                                                : asset.source === 'kraken' && !asset.symbol.endsWith('.EQ')
-                                                    ? 'Crypto'
-                                                    : asset.asset_type === 'crypto'
+                                            {isCash(asset)
+                                                ? 'Cash'
+                                                : asset.symbol.endsWith('.EQ')
+                                                    ? (isETF(asset) ? 'ETF' : 'Stock')
+                                                    : asset.source === 'kraken' && !asset.symbol.endsWith('.EQ')
                                                         ? 'Crypto'
-                                                        : (asset.asset_type === 'equity' || asset.asset_type === 'manual') && isETF(asset)
-                                                            ? 'ETF'
-                                                            : asset.asset_type === 'equity'
-                                                                ? 'Stock'
-                                                                : asset.asset_type === 'manual' && isETF(asset)
-                                                                    ? 'ETF'
-                                                                    : 'Manual'
+                                                        : asset.asset_type === 'crypto'
+                                                            ? 'Crypto'
+                                                            : (asset.asset_type === 'equity' || asset.asset_type === 'manual') && isETF(asset)
+                                                                ? 'ETF'
+                                                                : asset.asset_type === 'equity'
+                                                                    ? 'Stock'
+                                                                    : asset.asset_type === 'manual' && isETF(asset)
+                                                                        ? 'ETF'
+                                                                        : 'Manual'
                                             }
                                         </span>
                                     </div>
@@ -263,7 +274,9 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                         {/* All Asset Data in One Section */}
                         <div className="p-5">
                             {/* Primary Metrics Grid */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-700/50">
+                            <div className={`grid gap-4 mb-5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-700/50 ${
+                                group === 'cash' ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-4'
+                            }`}>
                                 {/* Price */}
                                 <div className="text-center">
                                     <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
@@ -284,7 +297,8 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                     </div>
                                 </div>
 
-                                {/* Cost Basis */}
+                                {/* Cost Basis - Hide for cash */}
+                                {group !== 'cash' && (
                                 <div className="text-center">
                                     <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
                                         Cost Basis
@@ -330,8 +344,10 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                         </div>
                                     )}
                                 </div>
+                                )}
 
-                                {/* Daily P&L */}
+                                {/* Daily P&L - Hide for cash */}
+                                {group !== 'cash' && (
                                 <div className="text-center">
                                     <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
                                         Daily P&L
@@ -354,10 +370,11 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                         )}
                                     </div>
                                 </div>
+                                )}
                             </div>
 
-                            {/* Unrealized P&L Section - When Available */}
-                            {hasUnrealizedPnL && (
+                            {/* Unrealized P&L Section - When Available (Hide for cash) */}
+                            {hasUnrealizedPnL && group !== 'cash' && (
                                 <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                                     <div className="grid grid-cols-2 gap-4 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-700/50">
                                         <div className="text-center">

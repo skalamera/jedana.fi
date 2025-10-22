@@ -12,13 +12,14 @@ export function PortfolioDashboard() {
 
     // State for tracking expanded groups
     const [expandedGroups, setExpandedGroups] = useState({
+        cash: false,
         crypto: false,
         etf: false,
         stock: false,
         manual: false
     })
 
-    const toggleGroup = (group: 'crypto' | 'etf' | 'stock' | 'manual') => {
+    const toggleGroup = (group: 'cash' | 'crypto' | 'etf' | 'stock' | 'manual') => {
         setExpandedGroups(prev => ({
             ...prev,
             [group]: !prev[group]
@@ -30,11 +31,12 @@ export function PortfolioDashboard() {
     }, [refreshPortfolio])
 
     // Group assets by type and calculate totals
-    // Cryptocurrencies: Kraken crypto assets OR manual assets with crypto type
-    const cryptoAssets = portfolio?.assets.filter(asset =>
-        (asset.source === 'kraken' && !asset.symbol.endsWith('.EQ')) ||
-        (asset.source === 'manual' && asset.asset_type === 'crypto')
-    ) || []
+    
+    // Helper function to check if asset is cash/stablecoin
+    const isCash = (asset: PortfolioAsset) => {
+        const cashAssets = new Set(['ZUSD', 'USD', 'USDT', 'USDC', 'DAI', 'BUSD'])
+        return cashAssets.has(asset.symbol.replace('.EQ', ''))
+    }
 
     // Helper function to check if asset is an ETF
     const isETF = (asset: PortfolioAsset) => {
@@ -43,6 +45,16 @@ export function PortfolioDashboard() {
         ])
         return knownETFs.has(asset.symbol.replace('.EQ', ''))
     }
+
+    // Cash: ZUSD and other stablecoins/cash
+    const cashAssets = portfolio?.assets.filter(asset => isCash(asset)) || []
+
+    // Cryptocurrencies: Kraken crypto assets OR manual assets with crypto type (excluding cash)
+    const cryptoAssets = portfolio?.assets.filter(asset =>
+        ((asset.source === 'kraken' && !asset.symbol.endsWith('.EQ')) ||
+        (asset.source === 'manual' && asset.asset_type === 'crypto')) &&
+        !isCash(asset)
+    ) || []
 
     // ETFs: ETF assets (both .EQ and manual)
     const etfAssets = portfolio?.assets.filter(asset =>
@@ -80,6 +92,7 @@ export function PortfolioDashboard() {
         }
     }, [totalPortfolioValue])
 
+    const cashMetrics = computeGroupMetrics(cashAssets)
     const cryptoMetrics = computeGroupMetrics(cryptoAssets)
     const etfMetrics = computeGroupMetrics(etfAssets)
     const stockMetrics = computeGroupMetrics(stockAssets)
@@ -143,8 +156,8 @@ export function PortfolioDashboard() {
 
                 {/* Daily P&L Section */}
                 <div className={`rounded-lg px-4 py-2.5 border-2 shadow-sm min-w-[140px] ${isPnLPositive
-                        ? 'bg-green-50/80 dark:bg-green-900/30 border-green-300 dark:border-green-600'
-                        : 'bg-red-50/80 dark:bg-red-900/30 border-red-300 dark:border-red-600'
+                    ? 'bg-green-50/80 dark:bg-green-900/30 border-green-300 dark:border-green-600'
+                    : 'bg-red-50/80 dark:bg-red-900/30 border-red-300 dark:border-red-600'
                     }`}>
                     <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-0.5 uppercase tracking-wide">
                         Daily P&L
@@ -167,6 +180,49 @@ export function PortfolioDashboard() {
 
             {/* Asset Sections */}
             <div className="space-y-4 md:space-y-6">
+                {/* Cash Section */}
+                {cashAssets.length > 0 && (
+                    <div className="bg-gradient-to-br from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 shadow-lg rounded-2xl border-2 overflow-hidden transition-all hover:shadow-xl" style={{ borderColor: '#10b981' }}>
+                        <div className="p-5 md:p-7">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
+                                <div className="flex items-center space-x-3">
+                                    <button
+                                        onClick={() => toggleGroup('cash')}
+                                        className="p-2 hover:bg-gray-200/60 dark:hover:bg-gray-600/60 rounded-lg transition-all duration-200"
+                                        aria-label={expandedGroups.cash ? 'Collapse cash' : 'Expand cash'}
+                                    >
+                                        {expandedGroups.cash ? (
+                                            <ChevronDown className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                                        ) : (
+                                            <ChevronRight className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                                        )}
+                                    </button>
+                                    <div className="w-3 h-8 rounded-full shadow-sm bg-emerald-500"></div>
+                                    <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+                                        Cash <span className="text-gray-500 dark:text-gray-400 font-normal">({cashAssets.length})</span>
+                                    </h3>
+                                </div>
+                                <div className="flex items-end justify-between sm:justify-end w-full sm:w-auto">
+                                    <div className="flex justify-end items-center gap-3">
+                                        {/* Total Value Section - No Daily P&L for cash */}
+                                        <div className="bg-white/50 dark:bg-gray-600/50 backdrop-blur-sm rounded-lg px-4 py-2.5 border border-gray-200 dark:border-gray-600 shadow-sm">
+                                            <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-0.5 uppercase tracking-wide">
+                                                {formatShare(cashMetrics.shareOfTotal)} of total
+                                            </div>
+                                            <div className="text-xl md:text-2xl font-bold text-emerald-500">
+                                                {formatCurrency(cashMetrics.value)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {expandedGroups.cash && (
+                                <AssetList assets={cashAssets} group="cash" />
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {/* Cryptocurrencies Section */}
                 {cryptoAssets.length > 0 && (
                     <div className="bg-gradient-to-br from-gray-50 to-white dark:from-gray-700 dark:to-gray-800 shadow-lg rounded-2xl border-2 overflow-hidden transition-all hover:shadow-xl" style={{ borderColor: 'var(--crypto-primary)' }}>
