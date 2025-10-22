@@ -177,8 +177,7 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                                                 className="w-4 h-4"
                                             />
                                         )}
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                            isCash(asset)
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${isCash(asset)
                                                 ? 'text-emerald-800 dark:text-emerald-300'
                                                 : asset.symbol.endsWith('.EQ') && !isETF(asset)
                                                     ? 'text-purple-800 dark:text-purple-300'
@@ -274,9 +273,8 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
                         {/* All Asset Data in One Section */}
                         <div className="p-5">
                             {/* Primary Metrics Grid */}
-                            <div className={`grid gap-4 mb-5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-700/50 ${
-                                group === 'cash' ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-4'
-                            }`}>
+                            <div className={`grid gap-4 mb-5 bg-gray-50/50 dark:bg-gray-900/30 rounded-xl p-4 border border-gray-200/50 dark:border-gray-700/50 ${group === 'cash' ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-4'
+                                }`}>
                                 {/* Price */}
                                 <div className="text-center">
                                     <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
@@ -299,77 +297,77 @@ export function AssetList({ assets, group = 'crypto' }: AssetListProps) {
 
                                 {/* Cost Basis - Hide for cash */}
                                 {group !== 'cash' && (
-                                <div className="text-center">
-                                    <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
-                                        Cost Basis
+                                    <div className="text-center">
+                                        <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
+                                            Cost Basis
+                                        </div>
+                                        {editingCostBasis === asset.symbol ? (
+                                            <div className="space-y-2">
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    value={editCostBasisValue}
+                                                    onChange={(e) => setEditCostBasisValue(e.target.value)}
+                                                    className="w-full max-w-24 px-2 py-1 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    autoFocus
+                                                />
+                                                <div className="flex justify-center space-x-1">
+                                                    <button
+                                                        onClick={() => saveCostBasis(asset)}
+                                                        className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm"
+                                                    >
+                                                        Save
+                                                    </button>
+                                                    <button
+                                                        onClick={cancelEditCostBasis}
+                                                        className="px-3 py-1 text-xs font-medium bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center justify-center space-x-1.5">
+                                                <div className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
+                                                    {formatCurrency(asset.costBasis)}
+                                                </div>
+                                                <button
+                                                    onClick={() => startEditCostBasis(asset)}
+                                                    className="p-1 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 transition-colors"
+                                                    title="Edit cost basis"
+                                                >
+                                                    <Edit className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
-                                    {editingCostBasis === asset.symbol ? (
-                                        <div className="space-y-2">
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                min="0"
-                                                value={editCostBasisValue}
-                                                onChange={(e) => setEditCostBasisValue(e.target.value)}
-                                                className="w-full max-w-24 px-2 py-1 text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                autoFocus
-                                            />
-                                            <div className="flex justify-center space-x-1">
-                                                <button
-                                                    onClick={() => saveCostBasis(asset)}
-                                                    className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm"
-                                                >
-                                                    Save
-                                                </button>
-                                                <button
-                                                    onClick={cancelEditCostBasis}
-                                                    className="px-3 py-1 text-xs font-medium bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500"
-                                                >
-                                                    Cancel
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center justify-center space-x-1.5">
-                                            <div className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
-                                                {formatCurrency(asset.costBasis)}
-                                            </div>
-                                            <button
-                                                onClick={() => startEditCostBasis(asset)}
-                                                className="p-1 text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 transition-colors"
-                                                title="Edit cost basis"
-                                            >
-                                                <Edit className="w-3.5 h-3.5" />
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
                                 )}
 
                                 {/* Daily P&L - Hide for cash */}
                                 {group !== 'cash' && (
-                                <div className="text-center">
-                                    <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
-                                        Daily P&L
+                                    <div className="text-center">
+                                        <div className="text-xs font-bold uppercase tracking-wider mb-2 text-gray-600 dark:text-gray-400">
+                                            Daily P&L
+                                        </div>
+                                        <div className={`text-lg md:text-xl font-bold flex items-center justify-center ${isPositivePnL ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                            {asset.dailyPnL === 0 && asset.symbol.endsWith('.EQ') ? (
+                                                <span className="text-gray-400 dark:text-gray-500">—</span>
+                                            ) : isPositivePnL ? (
+                                                <TrendingUp className="w-4 h-4 mr-1" />
+                                            ) : (
+                                                <TrendingDown className="w-4 h-4 mr-1" />
+                                            )}
+                                            {asset.dailyPnL === 0 && asset.symbol.endsWith('.EQ') ? '' : formatCurrency(asset.dailyPnL)}
+                                        </div>
+                                        <div className={`text-sm ${isPositivePnL ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                            {asset.dailyPnL === 0 && asset.symbol.endsWith('.EQ') ? (
+                                                <span className="text-gray-400 dark:text-gray-500">—</span>
+                                            ) : (
+                                                formatPercentage(dailyPct)
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className={`text-lg md:text-xl font-bold flex items-center justify-center ${isPositivePnL ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                        {asset.dailyPnL === 0 && asset.symbol.endsWith('.EQ') ? (
-                                            <span className="text-gray-400 dark:text-gray-500">—</span>
-                                        ) : isPositivePnL ? (
-                                            <TrendingUp className="w-4 h-4 mr-1" />
-                                        ) : (
-                                            <TrendingDown className="w-4 h-4 mr-1" />
-                                        )}
-                                        {asset.dailyPnL === 0 && asset.symbol.endsWith('.EQ') ? '' : formatCurrency(asset.dailyPnL)}
-                                    </div>
-                                    <div className={`text-sm ${isPositivePnL ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                        {asset.dailyPnL === 0 && asset.symbol.endsWith('.EQ') ? (
-                                            <span className="text-gray-400 dark:text-gray-500">—</span>
-                                        ) : (
-                                            formatPercentage(dailyPct)
-                                        )}
-                                    </div>
-                                </div>
                                 )}
                             </div>
 

@@ -31,7 +31,7 @@ export function PortfolioDashboard() {
     }, [refreshPortfolio])
 
     // Group assets by type and calculate totals
-    
+
     // Helper function to check if asset is cash/stablecoin
     const isCash = (asset: PortfolioAsset) => {
         const cashAssets = new Set(['ZUSD', 'USD', 'USDT', 'USDC', 'DAI', 'BUSD'])
@@ -52,7 +52,7 @@ export function PortfolioDashboard() {
     // Cryptocurrencies: Kraken crypto assets OR manual assets with crypto type (excluding cash)
     const cryptoAssets = portfolio?.assets.filter(asset =>
         ((asset.source === 'kraken' && !asset.symbol.endsWith('.EQ')) ||
-        (asset.source === 'manual' && asset.asset_type === 'crypto')) &&
+            (asset.source === 'manual' && asset.asset_type === 'crypto')) &&
         !isCash(asset)
     ) || []
 
