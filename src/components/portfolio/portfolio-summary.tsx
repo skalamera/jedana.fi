@@ -129,7 +129,7 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
     useEffect(() => {
         async function fetchHistoricalData() {
             if (!portfolio?.assets || portfolio.assets.length === 0) return
-            
+
             setIsLoadingHistory(true)
             try {
                 const response = await fetch('/api/portfolio/historical', {
@@ -204,14 +204,14 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
     // Process historical chart data
     const chartData = useMemo(() => {
         if (!portfolio || historicalData.length === 0) return []
-        
+
         // Use real historical data
         const firstValue = historicalData[0]?.portfolioValue || portfolio.totalValue
-        
+
         return historicalData.map((point) => {
             // Normalize S&P 500 to portfolio scale for visual comparison
             const spyNormalized = (point.spyPrice / historicalData[0].spyPrice) * firstValue
-            
+
             return {
                 date: point.date,
                 value: point.portfolioValue,
@@ -401,9 +401,9 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                                 ) : (
                                     <ResponsiveContainer width="100%" height={110}>
                                         <LineChart data={chartData} margin={{ top: 15, right: 15, left: 15, bottom: 15 }}>
-                                            <YAxis 
-                                                domain={['dataMin - dataMin * 0.1', 'dataMax + dataMax * 0.1']} 
-                                                hide 
+                                            <YAxis
+                                                domain={['dataMin - dataMin * 0.1', 'dataMax + dataMax * 0.1']}
+                                                hide
                                             />
                                             <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#ffffff', strokeWidth: 1, strokeDasharray: '3 3' }} />
                                             {/* S&P 500 Line */}
@@ -442,7 +442,7 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                                 }`}>
                                 <div className="space-y-3 md:space-y-4">
                                     <div className="flex items-center">
-                                    <div className="flex-shrink-0">
+                                        <div className="flex-shrink-0">
                                             <div className="w-10 h-10 md:w-12 md:h-12 bg-white/10 backdrop-blur-sm rounded-lg flex items-center justify-center">
                                                 <BarChart3 className="h-5 w-5 md:h-6 md:w-6 text-white" />
                                             </div>
@@ -482,7 +482,7 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                                         <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-white/20">
                                             <dt className="text-[10px] md:text-xs font-medium text-white/80 uppercase tracking-wide mb-2">
                                                 S&P 500 Starting Price
-                                        </dt>
+                                            </dt>
                                             {isEditingSpyPrice ? (
                                                 <div className="flex flex-col sm:flex-row gap-2">
                                                     <input
@@ -517,7 +517,7 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                                                 <div className="flex items-center justify-between gap-2">
                                                     <dd className="text-base md:text-lg lg:text-xl font-bold text-white truncate">
                                                         ${startingSpyPrice?.toFixed(2)}
-                                        </dd>
+                                                    </dd>
                                                     <button
                                                         onClick={handleEditSpyPrice}
                                                         className="inline-flex items-center gap-1 px-2 md:px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg text-xs md:text-sm font-medium transition-colors flex-shrink-0"
@@ -530,12 +530,12 @@ export function PortfolioSummary({ portfolio, isLoading }: PortfolioSummaryProps
                                             )}
                                             <dd className="text-[10px] md:text-xs text-white/70 mt-1 truncate">
                                                 Current: ${currentSpyPrice?.toFixed(2)}
-                                        </dd>
+                                            </dd>
                                         </div>
                                     </div>
-                                    </div>
                                 </div>
-                            )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Row 2: Performance Metrics - Even grid */}
